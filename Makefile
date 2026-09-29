@@ -10,13 +10,9 @@ STRIP = $(COMPILE_PREX)strip
 OBJCOPY = $(COMPILE_PREX)objcopy
 OBJDUMP = $(COMPILE_PREX)objdump
 
-# The bundled OpenWrt toolchain normally gets the target headers and libraries
-# from Tina's STAGING_DIR.  Keep the demo relocatable by deriving those paths
-# from COMPILE_PREX instead.
+# Make the bundled OpenWrt toolchain independent of Tina's STAGING_DIR.
 TOOLCHAIN_ROOT := $(abspath $(dir $(COMPILE_PREX))/..)
 TOOLCHAIN_SYS_INCS := -isystem $(TOOLCHAIN_ROOT)/include
-# -L is used for normal libraries.  GCC uses -B (not -L) when looking for
-# startup objects such as crt1.o, crti.o and crtn.o.
 TOOLCHAIN_SYS_LIBS := -B$(TOOLCHAIN_ROOT)/lib/ -L$(TOOLCHAIN_ROOT)/lib
 
 #全志芯片头文件选项
@@ -28,7 +24,7 @@ OUTPUT_DIR = $(ROOT_DIR)/output/
 OUTPUT_DIR_OBJS = $(OUTPUT_DIR)/objs
 
 #sammple目录
-USER_SRC_BASE_DIR 	=  $(ROOT_DIR)/app
+USER_SRC_BASE_DIR 	=  $(ROOT_DIR)/sample
 
 #多媒体静态库目录
 mpp_lib_dir=$(ROOT_DIR)/sdk/aw_pack_src/lib_aw/lib/eyesee-mpp
@@ -176,7 +172,7 @@ DEFINES = \
 	-Os -pipe -march=armv7-a -mtune=cortex-a7 -mfpu=neon -g3 -fno-caller-saves -Wno-unused-result -mfloat-abi=hard  -Wformat  -Werror=format-security -fstack-protector -Wl,-z,now -Wl,-z,relro -Wl,-z,stack-size=1048576 
 
 #全志头文件路径
-#USER_INC_BASE_DIR  += $(ROOT_DIR)/aw_pack_src/lib_aw/include/eyesee-mpp/viplite
+#USER_INC_BASE_DIR  += $(ROOT_DIR)/sdk/aw_pack_src/lib_aw/include/eyesee-mpp/viplite
 USER_INC_BASE_DIR  += $(ROOT_DIR)/sdk/aw_pack_src/lib_aw/include/viplite-driver
 USER_INC_BASE_DIR  += $(ROOT_DIR)/sdk/aw_pack_src/lib_aw/include/eyesee-mpp/middleware/include/utils
 USER_INC_BASE_DIR  += $(ROOT_DIR)/sdk/aw_pack_src/lib_aw/include/eyesee-mpp/middleware/include/media
@@ -200,7 +196,7 @@ USER_INC_BASE_DIR  += $(ROOT_DIR)/sdk/aw_pack_src/lib_aw/include/libawlist
 USER_INC_BASE_DIR  += $(ROOT_DIR)/sdk/aw_pack_src/lib_aw/include/eyesee-mpp/middleware/media/LIBRARY/libisp
 USER_INC_BASE_DIR  += $(ROOT_DIR)/sdk/aw_pack_src/lib_aw/include/eyesee-mpp/middleware/media/utils
 USER_INC_BASE_DIR  += $(ROOT_DIR)/sdk/aw_pack_src/lib_aw/include/libawaiisp
-#USER_INC_BASE_DIR  += $(ROOT_DIR)/aw_pack_src/lib_aw/include/libawaiisp/viplite-driver
+#USER_INC_BASE_DIR  += $(ROOT_DIR)/sdk/aw_pack_src/lib_aw/include/libawaiisp/viplite-driver
 USER_INC_BASE_DIR  += $(ROOT_DIR)/sdk/aw_pack_src/lib_aw/include/eyesee-mpp/system/public/libion/include
 USER_INC_BASE_DIR  += $(ROOT_DIR)/sdk/aw_pack_src/lib_aw/include/eyesee-mpp/system/public/rgb_ctrl/
 
@@ -212,8 +208,8 @@ USER_SRCS += $(foreach dir, $(USER_SRC_DIRS), $(wildcard $(dir)/*.s))
 USER_SRCS += $(foreach dir, $(USER_SRC_DIRS), $(wildcard $(dir)/*.S)) 
 #user头文件
 USER_INCS = $(addprefix -I ,  $(shell find $(USER_INC_BASE_DIR) -type d) )
-USER_INCS += -I$(ROOT_DIR)/include/
-USER_INCS += -I$(ROOT_DIR)/common/
+USER_INCS += -I$(ROOT_DIR)/sample/common/
+USER_INCS += -I$(ROOT_DIR)/sample/ipc_camera/include/
 USER_INCS += -I$(ROOT_DIR)/sdk/share_include/opencv4/
 #user的obj命令
 USER_OBJS = $(addsuffix .o, $(basename  $(USER_SRCS) ) )

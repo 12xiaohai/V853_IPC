@@ -1,10 +1,9 @@
 # sample_demo
 
-This directory rebuilds the V853 intelligent camera project step by step.
-The original implementation under `sample/ipc_camera` is used only as a
-reference and is not modified. The V853 cross toolchain, headers, and libraries
-are copied into `sdk`, so this directory does not depend on its parent directory
-when compiling.
+This directory rebuilds the V853 intelligent camera project step by step. The
+application follows the original `sample/ipc_camera` source layout. The V853
+cross toolchain, headers, libraries, rootfs, and firmware packaging inputs are
+kept under `sdk`, so the project does not depend on its parent directory.
 
 ## Development stages
 
@@ -36,7 +35,7 @@ Build only the application:
 ./build.sh
 ```
 
-Build the application, install it as `/usr/bin/sample_demo` in the bundled Tina
+Build the application, install it as `/usr/bin/sample` in the bundled Tina
 rootfs, and generate a new firmware image:
 
 ```sh

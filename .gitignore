@@ -1,4 +1,7 @@
 /output/
+/sdk/aw_pack_src/out/
+/sdk/aw_pack_src/tmp/
+/mk_firmware/rootfs-tmp/
 *.o
 *_strip
 .vscode/
