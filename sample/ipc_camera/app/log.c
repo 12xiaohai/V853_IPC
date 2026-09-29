@@ -1,4 +1,5 @@
 #include <utils/plat_log.h>
+#include <string.h>
 
 void init_glog(char *argv[]) {
 

@@ -1,5 +1,6 @@
 #include <context.h>
 #include <utils/plat_log.h>
+#include <stdlib.h>
 
 IpCameraContext *constructIpCameraContext() {
   int ret;

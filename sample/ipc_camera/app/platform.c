@@ -4,6 +4,7 @@
 #include <sys/time.h>
 #include <tmessage.h>
 #include <utils/plat_log.h>
+#include <string.h>
 
 /**
  * @brief 初始化多媒体处理平台
