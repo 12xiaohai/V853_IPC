@@ -207,10 +207,11 @@ USER_SRCS += $(foreach dir, $(USER_SRC_DIRS), $(wildcard $(dir)/*.cpp))
 USER_SRCS += $(foreach dir, $(USER_SRC_DIRS), $(wildcard $(dir)/*.s)) 
 USER_SRCS += $(foreach dir, $(USER_SRC_DIRS), $(wildcard $(dir)/*.S)) 
 #user头文件
-USER_INCS = $(addprefix -I ,  $(shell find $(USER_INC_BASE_DIR) -type d) )
+USER_INCS  = -I$(ROOT_DIR)/sample/ipc_camera/include/
 USER_INCS += -I$(ROOT_DIR)/sample/common/
-USER_INCS += -I$(ROOT_DIR)/sample/ipc_camera/include/
+USER_INCS += $(addprefix -I ,$(shell find $(USER_INC_BASE_DIR) -type d))
 USER_INCS += -I$(ROOT_DIR)/sdk/share_include/opencv4/
+
 #user的obj命令
 USER_OBJS = $(addsuffix .o, $(basename  $(USER_SRCS) ) )
 #user的实际obj地址
