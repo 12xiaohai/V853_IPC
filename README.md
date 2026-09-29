@@ -1,0 +1,59 @@
+# sample_demo
+
+This directory rebuilds the V853 intelligent camera project step by step.
+The original implementation under `sample/ipc_camera` is used only as a
+reference and is not modified. The V853 cross toolchain, headers, and libraries
+are copied into `sdk`, so this directory does not depend on its parent directory
+when compiling.
+
+## Development stages
+
+1. Process lifecycle and MPP system initialization.
+2. Camera capture with VI.
+3. LCD preview with G2D rotation and VO.
+4. H.264 encoding with VENC.
+5. RTSP video streaming.
+6. Audio capture, AAC encoding, and A/V synchronization.
+7. OSD time watermark.
+8. MP4 recording and cyclic file management.
+9. NPU detection, line crossing, region intrusion, and audio alarm.
+
+## Stage 1
+
+The current code initializes the MPP system, establishes the global PTS base,
+waits for `SIGINT` or `SIGTERM`, and then shuts the MPP system down cleanly.
+
+Build in a Linux environment:
+
+```sh
+cd sample_demo
+sh build.sh
+```
+
+Build only the application:
+
+```sh
+./build.sh
+```
+
+Build the application, install it as `/usr/bin/sample_demo` in the bundled Tina
+rootfs, and generate a new firmware image:
+
+```sh
+./build.sh firmware
+```
+
+The resulting image is written to `output/tina_ipc_uart0.img`. OpenCV and other
+shared libraries are supplied by `/usr/lib` in the firmware rootfs, matching
+the deployment model of the original project. The standalone executable is not
+intended to run directly from `/mnt/UDISK` on firmware without those libraries.
+
+## Local SDK layout
+
+```text
+sdk/
+|-- toolchain/          ARM musl cross compiler
+|-- aw_pack_src/        MPP libraries and Tina firmware packaging inputs
+|-- share_include/      third-party public headers
+`-- share_lib/          target shared libraries used while linking
+```

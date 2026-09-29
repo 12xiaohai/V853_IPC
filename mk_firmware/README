@@ -1,0 +1,80 @@
+这个文件夹的作用是把编译的sample 拷贝到rootfs当中去。当然可以参考这种方法，放任意文件到rootfs中去。
+或者参照这个方法二次修改其他分区文件。
+
+本目录build_part.sh步骤为：
+1. build_part.sh 脚本首先aw_pack_src/rootfs/rootfs.tar.gz 解压
+2. 然后把编译好的sample_strip 拷贝到/usr/bin/ 目录里面
+3. 最后重新把rootfs 打包成squashfs 的xz格式，覆盖到aw_pack_src/image目录下的rootfs.fex
+4. 最终调用aw_pack_src/aw_pack.sh 重新打包成全志的固件。
+
+【注意】
+1. 注意添加了sample_strip 的rootfs,fex 大小会增加，请先手动判断是否会超过分区大小。如果超过了可能打包不会报错，但USB烧录会卡主，卡烧录会报错。
+2. 如果发生超过分区大小情况，请重新在Tina SDK 改分区大小并重新生成aw_pack_src目录覆盖过来。
+
+如果要制作烧录器固件，则可以根据分区布局把aw_pack_src/image/ 里面的分区文件按照一定的偏移链接起来。
+
+分区布局： uboot布局，可参考文件device/config/chips/v851se/configs/perf1/linux/uboot-board.dts (注意："v851se/configs/perf1"这一块根据不同芯片和板级来选择)
+
+如nor_map项是指定了mtdblock0 这一段的组成和偏移，单位是512字节。
+/*
+*  |-32k-|   -4k-           |   -uboot size-            |-16k-|
+*
+*  |boot0|boot_param（留空）|uboot(boot_package_nor.fex)| mbr |  ===> mtdblock0
+*
+*        |                  |->uboot_start              |     |-> kernel start
+*        |->boot_param_start                            |->logic_offset
+*/
+        nor_map {
+                logic_offset = <480>;
+                secure_logic_offset = <2200>;
+                rtos_logic_offset = <2016>;
+                rtos_secure_logic_offset = <2200>;
+                boot_param_start = <64>;
+                boot_param_size = <8>;
+                uboot_start = <72>;
+                uboot_size = <320>;
+                status = "okay";
+        };
+};
+
+而mtdblock1和之后的分区大小和偏移，则在device/config/chips/v851se/configs/perf1/linux/sys_partition_nor.fex 指定。(注意："v851se/configs/perf1"这一块根据不同芯片和板级来选择)
+;
+;     mtdblock1         mtdblock2    mtdblock3
+;|boot.fex(kenel分区)| rootfs.fex | env_nor.fex  |
+;  size:3584*512       14592*512      256*512
+;
+;
+[partition_start]
+
+
+[partition]
+    name         = boot
+    size         = 3584
+    downloadfile = "boot.fex"
+    user_type    = 0x8000
+
+[partition]
+    name         = rootfs
+    size         = 14592
+    downloadfile = "rootfs.fex"
+    user_type    = 0x8000
+
+[partition]
+   name         = env
+   size         = 256
+   downloadfile = "env_nor.fex"
+   user_type    = 0x8000
+   
+   
+在aw_pack_src/image找到对应文件，使用dd文件组合起来即可：如：
+boot0_sdcard.fex
+boot0_spinor.fex         #boot0 分区镜像
+boot.fex                 #boot 分区镜像(kernel)
+boot_package.fex*        
+boot_package_nor.fex*    #uboot 分区镜像
+env_nor.fex*             #env 分区镜像
+rootfs.fex               #rootfs 分区镜像
+sunxi.fex*               #mbr 分区镜像
+...
+
+【注意】 分区镜像文件不能超过分区大小。
