@@ -11,6 +11,7 @@
 #include "context.h"
 #include "log.h"
 #include "platform.h"
+#include "video_capture.h"
 
 #include <utils/plat_log.h>
 
@@ -60,6 +61,7 @@ int main(int argc, char *argv[])
     int mutex_initialized = 0;
     int log_initialized = 0;
     int platform_initialized = 0;
+    int video_capture_started = 0;
 
     (void)argc;
 
@@ -99,6 +101,12 @@ int main(int argc, char *argv[])
     }
     platform_initialized = 1;
 
+    if (video_capture_start(&g_pContext->video_capture) != 0) {
+        aloge("[Main] Video capture initialization failed");
+        goto cleanup;
+    }
+    video_capture_started = 1;
+
     alogd("[Main] Application is running; press Ctrl+C to exit");
     while (g_exit_signal == 0) {
         sleep(1);
@@ -108,6 +116,11 @@ int main(int argc, char *argv[])
     ret = EXIT_SUCCESS;
 
 cleanup:
+    if (video_capture_started &&
+        video_capture_stop(&g_pContext->video_capture) != 0) {
+        ret = EXIT_FAILURE;
+    }
+
     if (platform_initialized && platform_deinit() != 0) {
         ret = EXIT_FAILURE;
     }

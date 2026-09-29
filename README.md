@@ -17,10 +17,12 @@ kept under `sdk`, so the project does not depend on its parent directory.
 8. MP4 recording and cyclic file management.
 9. NPU detection, line crossing, region intrusion, and audio alarm.
 
-## Stage 1
+## Current progress
 
-The current code initializes the MPP system, establishes the global PTS base,
-waits for `SIGINT` or `SIGTERM`, and then shuts the MPP system down cleanly.
+Stage 1 initializes the MPP system, establishes the global PTS base, handles
+`SIGINT`/`SIGTERM`, and shuts the platform down cleanly. Stage 2 creates the
+MIPI CSI/VI capture path, continuously obtains and releases video frames in a
+worker thread, and destroys the VI/ISP resources in reverse order on exit.
 
 Build in a Linux environment:
 
