@@ -1,5 +1,11 @@
+#define _POSIX_C_SOURCE 200809L
+
 #include <pthread.h>
+#include <signal.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #include "config.h"
 #include "context.h"
@@ -10,6 +16,33 @@
 
 static pthread_mutex_t g_mutex_mpp;
 static IpCameraContext *g_pContext;
+static volatile sig_atomic_t g_exit_signal;
+
+static void handle_exit_signal(int signal_number)
+{
+    g_exit_signal = signal_number;
+}
+
+static int install_signal_handlers(void)
+{
+    struct sigaction action;
+
+    memset(&action, 0, sizeof(action));
+    action.sa_handler = handle_exit_signal;
+    sigemptyset(&action.sa_mask);
+
+    if (sigaction(SIGINT, &action, NULL) != 0) {
+        perror("sigaction(SIGINT)");
+        return -1;
+    }
+
+    if (sigaction(SIGTERM, &action, NULL) != 0) {
+        perror("sigaction(SIGTERM)");
+        return -1;
+    }
+
+    return 0;
+}
 
 static int initialize_context(IpCameraContext *context)
 {
@@ -34,6 +67,10 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
     mutex_initialized = 1;
+
+    if (install_signal_handlers() != 0) {
+        goto cleanup;
+    }
 
     if (init_glog(argv) != 0) {
         goto cleanup;
@@ -61,6 +98,12 @@ int main(int argc, char *argv[])
         goto cleanup;
     }
     platform_initialized = 1;
+
+    alogd("[Main] Application is running; press Ctrl+C to exit");
+    while (g_exit_signal == 0) {
+        sleep(1);
+    }
+    alogd("[Main] Exit signal received: %d", (int)g_exit_signal);
 
     ret = EXIT_SUCCESS;
 
