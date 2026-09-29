@@ -1,64 +1,66 @@
-#include "../include/app_context.h"
-#include "../include/platform.h"
 
-#include <signal.h>
-#include <stdio.h>
+#include <pthread.h>
+#include <log.h>
+
 #include <stdlib.h>
-#include <unistd.h>
+#include <context.h>
+#include <utils/plat_log.h>
+#include <config.h>
+#include <platform.h>
+static pthread_mutex_t g_mutex_mpp;
+static IpCameraContext *g_pContext = NULL;
 
-static AppContext *g_context;
+static int initialize_context(IpCameraContext *ctx) { return 0; }
 
-static void handle_exit_signal(int signal_number)
-{
-    (void)signal_number;
+int main(int argc, char *argv[]) {
+  int ret = 0;
+  // 初始化互斥锁
+  pthread_mutex_init(&g_mutex_mpp, NULL);
+  // 初始化日志系统
+  init_glog(argv);
+  alogd("======================================================");
+  alogd("[Main] Starting IP Camera Application");
+  alogd("[Main] Build date: %s %s", __DATE__, __TIME__);
+  alogd("======================================================");
+  // 创建上下文
+  g_pContext = constructIpCameraContext();
+  if (!g_pContext) {
+    aloge("[Main] Context allocation failed!");
+    ret = -1;
+    goto cleanup;
+  }
 
-    if (g_context != NULL) {
-        g_context->exit_requested = 1;
-    }
-}
+  // 初始化上下文
+  if ((ret = initialize_context(g_pContext)) != 0) {
+    aloge("[Main] Context initialization failed");
+    goto cleanup;
+  }
 
-static int install_signal_handlers(void)
-{
-    if (signal(SIGINT, handle_exit_signal) == SIG_ERR) {
-        perror("signal(SIGINT)");
-        return -1;
-    }
-
-    if (signal(SIGTERM, handle_exit_signal) == SIG_ERR) {
-        perror("signal(SIGTERM)");
-        return -1;
-    }
-
-    return 0;
-}
-
-int main(void)
-{
-    int exit_code = EXIT_FAILURE;
-    AppContext context = {0};
-
-    g_context = &context;
-
-    if (install_signal_handlers() != 0) {
-        goto cleanup;
-    }
-
-    if (platform_init(&context) != 0) {
-        goto cleanup;
-    }
-
-    puts("sample_demo is running; press Ctrl+C to exit");
-    while (!context.exit_requested) {
-        sleep(1);
-    }
-
-    exit_code = EXIT_SUCCESS;
+  // 平台初始化
+  if ((ret = platform_init()) != 0) {
+    aloge("[Main] Platform initialization failed: %d", ret);
+    goto cleanup;
+  }
 
 cleanup:
-    if (platform_deinit(&context) != 0) {
-        exit_code = EXIT_FAILURE;
-    }
-    g_context = NULL;
-    return exit_code;
-}
+  // 停止服务
 
+  // 释放资源
+
+  // 释放上下文
+  if (g_pContext) {
+    free(g_pContext);
+    g_pContext = NULL;
+  }
+
+  // 平台反初始化
+
+  // 销毁互斥锁
+  pthread_mutex_destroy(&g_mutex_mpp);
+
+  alogd("======================================================");
+  alogd("[Main] Application exited with code: %d", ret);
+  alogd("======================================================");
+
+  return ret;
+}

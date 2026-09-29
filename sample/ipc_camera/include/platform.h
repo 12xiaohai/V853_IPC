@@ -1,10 +1,6 @@
-#ifndef SAMPLE_DEMO_PLATFORM_H
-#define SAMPLE_DEMO_PLATFORM_H
+#include <context.h>
 
-#include "app_context.h"
 
-int platform_init(AppContext *context);
-int platform_deinit(AppContext *context);
+int platform_init();
 
-#endif
 

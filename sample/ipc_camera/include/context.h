@@ -1,0 +1,5 @@
+
+
+typedef struct IpCameraContext {
+
+} IpCameraContext;
