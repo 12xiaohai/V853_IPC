@@ -1,66 +1,87 @@
-
 #include <pthread.h>
-#include <log.h>
-
 #include <stdlib.h>
-#include <context.h>
+
+#include "config.h"
+#include "context.h"
+#include "log.h"
+#include "platform.h"
+
 #include <utils/plat_log.h>
-#include <config.h>
-#include <platform.h>
+
 static pthread_mutex_t g_mutex_mpp;
-static IpCameraContext *g_pContext = NULL;
+static IpCameraContext *g_pContext;
 
-static int initialize_context(IpCameraContext *ctx) { return 0; }
+static int initialize_context(IpCameraContext *context)
+{
+    if (context == NULL) {
+        return -1;
+    }
 
-int main(int argc, char *argv[]) {
-  int ret = 0;
-  // 初始化互斥锁
-  pthread_mutex_init(&g_mutex_mpp, NULL);
-  // 初始化日志系统
-  init_glog(argv);
-  alogd("======================================================");
-  alogd("[Main] Starting IP Camera Application");
-  alogd("[Main] Build date: %s %s", __DATE__, __TIME__);
-  alogd("======================================================");
-  // 创建上下文
-  g_pContext = constructIpCameraContext();
-  if (!g_pContext) {
-    aloge("[Main] Context allocation failed!");
-    ret = -1;
-    goto cleanup;
-  }
+    context->initialized = 1;
+    return 0;
+}
 
-  // 初始化上下文
-  if ((ret = initialize_context(g_pContext)) != 0) {
-    aloge("[Main] Context initialization failed");
-    goto cleanup;
-  }
+int main(int argc, char *argv[])
+{
+    int ret = EXIT_FAILURE;
+    int mutex_initialized = 0;
+    int log_initialized = 0;
+    int platform_initialized = 0;
 
-  // 平台初始化
-  if ((ret = platform_init()) != 0) {
-    aloge("[Main] Platform initialization failed: %d", ret);
-    goto cleanup;
-  }
+    (void)argc;
+
+    if (pthread_mutex_init(&g_mutex_mpp, NULL) != 0) {
+        return EXIT_FAILURE;
+    }
+    mutex_initialized = 1;
+
+    if (init_glog(argv) != 0) {
+        goto cleanup;
+    }
+    log_initialized = 1;
+
+    alogd("======================================================");
+    alogd("[Main] Starting IP Camera Application");
+    alogd("[Main] Build date: %s %s", __DATE__, __TIME__);
+    alogd("======================================================");
+
+    g_pContext = constructIpCameraContext();
+    if (g_pContext == NULL) {
+        aloge("[Main] Context allocation failed");
+        goto cleanup;
+    }
+
+    if (initialize_context(g_pContext) != 0) {
+        aloge("[Main] Context initialization failed");
+        goto cleanup;
+    }
+
+    if (platform_init() != 0) {
+        aloge("[Main] Platform initialization failed");
+        goto cleanup;
+    }
+    platform_initialized = 1;
+
+    ret = EXIT_SUCCESS;
 
 cleanup:
-  // 停止服务
+    if (platform_initialized && platform_deinit() != 0) {
+        ret = EXIT_FAILURE;
+    }
 
-  // 释放资源
-
-  // 释放上下文
-  if (g_pContext) {
-    free(g_pContext);
+    destructIpCameraContext(g_pContext);
     g_pContext = NULL;
-  }
 
-  // 平台反初始化
+    if (log_initialized) {
+        alogd("======================================================");
+        alogd("[Main] Application exited with code: %d", ret);
+        alogd("======================================================");
+        deinit_glog();
+    }
 
-  // 销毁互斥锁
-  pthread_mutex_destroy(&g_mutex_mpp);
+    if (mutex_initialized) {
+        pthread_mutex_destroy(&g_mutex_mpp);
+    }
 
-  alogd("======================================================");
-  alogd("[Main] Application exited with code: %d", ret);
-  alogd("======================================================");
-
-  return ret;
+    return ret;
 }

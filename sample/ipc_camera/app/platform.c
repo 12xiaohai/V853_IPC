@@ -1,29 +1,59 @@
-#include <mm_comm_sys.h>
-#include <mm_common.h>
-#include <mpi_sys.h>
-#include <sys/time.h>
-#include <tmessage.h>
-#include <utils/plat_log.h>
+#include "platform.h"
+
+#include <stdint.h>
 #include <string.h>
 
-/**
- * @brief 初始化多媒体处理平台
- * @return 0成功，-1失败
- */
+#include <media/mpi_sys.h>
+#include <utils/plat_log.h>
 
-int platform_init() {
-  MPP_SYS_CONF_S stSysConf;
-  memset(&stSysConf, 0, sizeof(MPP_SYS_CONF_S));
-  stSysConf.nAlignWidth = 32;
-  AW_MPI_SYS_SetConf(&stSysConf);
-  int ret = AW_MPI_SYS_Init();
-  if (ret < 0) {
-    aloge("fatal error! sys Init failed! ret=%d", ret);
-    return -1;
-  }
-  uint64_t pu64CurPts;
-  AW_MPI_SYS_GetCurPts(pu64CurPts);
-  AW_MPI_SYS_InitPtsBase(pu64CurPts);
-  alogd("MPP platform Time:%d", pu64CurPts);
-  return 0;
+int platform_init(void)
+{
+    ERRORTYPE result;
+    MPP_SYS_CONF_S sys_conf;
+    uint64_t current_pts = 0;
+
+    memset(&sys_conf, 0, sizeof(sys_conf));
+    sys_conf.nAlignWidth = 32;
+
+    result = AW_MPI_SYS_SetConf(&sys_conf);
+    if (result != SUCCESS) {
+        aloge("AW_MPI_SYS_SetConf failed: %#x", result);
+        return -1;
+    }
+
+    result = AW_MPI_SYS_Init();
+    if (result != SUCCESS) {
+        aloge("AW_MPI_SYS_Init failed: %#x", result);
+        return -1;
+    }
+
+    result = AW_MPI_SYS_GetCurPts(&current_pts);
+    if (result != SUCCESS) {
+        aloge("AW_MPI_SYS_GetCurPts failed: %#x", result);
+        AW_MPI_SYS_Exit();
+        return -1;
+    }
+
+    result = AW_MPI_SYS_InitPtsBase(current_pts);
+    if (result != SUCCESS) {
+        aloge("AW_MPI_SYS_InitPtsBase failed: %#x", result);
+        AW_MPI_SYS_Exit();
+        return -1;
+    }
+
+    alogd("MPP platform time: %llu us",
+          (unsigned long long)current_pts);
+    return 0;
+}
+
+int platform_deinit(void)
+{
+    ERRORTYPE result = AW_MPI_SYS_Exit();
+
+    if (result != SUCCESS) {
+        aloge("AW_MPI_SYS_Exit failed: %#x", result);
+        return -1;
+    }
+
+    return 0;
 }

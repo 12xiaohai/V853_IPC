@@ -1,14 +1,22 @@
-#include <context.h>
-#include <utils/plat_log.h>
+#include "config.h"
+
 #include <stdlib.h>
 
-IpCameraContext *constructIpCameraContext() {
-  int ret;
-  IpCameraContext *pContext =
-      (IpCameraContext *)malloc(sizeof(IpCameraContext));
-  if (NULL == pContext) {
-    aloge("fatal error! malloc fail!");
-    return NULL;
-  }
-  return pContext;
+#include <utils/plat_log.h>
+
+IpCameraContext *constructIpCameraContext(void)
+{
+    IpCameraContext *context = calloc(1, sizeof(*context));
+
+    if (context == NULL) {
+        aloge("fatal error! allocate IP camera context failed");
+        return NULL;
+    }
+
+    return context;
+}
+
+void destructIpCameraContext(IpCameraContext *context)
+{
+    free(context);
 }

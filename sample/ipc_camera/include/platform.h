@@ -1,6 +1,7 @@
-#include <context.h>
+#ifndef IPC_CAMERA_PLATFORM_H
+#define IPC_CAMERA_PLATFORM_H
 
+int platform_init(void);
+int platform_deinit(void);
 
-int platform_init();
-
-
+#endif

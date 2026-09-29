@@ -1,3 +1,7 @@
-#include <utils/plat_log.h>
+#ifndef IPC_CAMERA_LOG_H
+#define IPC_CAMERA_LOG_H
 
-void init_glog(char *argv[]) ;
+int init_glog(char *argv[]);
+void deinit_glog(void);
+
+#endif
