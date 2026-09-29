@@ -161,6 +161,64 @@ chmod +x sample_strip
 
 下一阶段将在当前稳定取帧能力上加入 G2D 旋转和 VO 显示，形成“摄像头采集到 LCD 实时预览”的完整视频通路。
 
-## 10. 当前验证状态
+## 10. 开发板验证结果
 
-截至本文生成时，新增 C 源码已通过基于项目 SDK 头文件的 ARM 目标语法检查，未发现声明、类型或语法错误。完整交叉链接以及 V853 开发板取帧结果仍需按第 7 节执行，并以开发板日志作为最终验收依据。
+本阶段代码已经完成交叉编译，并于 2026 年 9 月 30 日在 V853 开发板上进行实际运行验证。
+
+### 10.1 已通过项目
+
+- MPP 和 ISP600 初始化成功；
+- `vin_video4` 打开成功，并确认 VIPP 4 对应 ISP 0；
+- 识别到 `gc2053_mipi` 摄像头及其 ISP 参数；
+- VIPP 使用 5 个缓冲区，离线模式启动成功；
+- VI 虚拟通道和采集线程启动成功；
+- 实际取得的图像帧尺寸为 1920×1080；
+- 帧计数从 1 持续增长到至少 400，没有发生采集停滞；
+- 第 1 帧 PTS 为 12159821014 us，第 400 帧 PTS 为 12179945827 us；
+- 399 个帧间隔共经过约 20.125 秒，实测帧率约为 19.83 fps，与配置的 20 fps 相符。
+
+关键运行日志如下：
+
+```text
+[VI] Starting: vipp=4, isp=0, chn=0, 1920x1080@20fps
+[ISP]open video device[4], detect isp0 success!
+[VI] Video capture started successfully
+[VI] Capture thread started
+[VI] Frame=1, id=0, size=1920x1080, pts=12159821014 us
+[VI] Frame=100, id=4, size=1920x1080, pts=12164808050 us
+[VI] Frame=200, id=4, size=1920x1080, pts=12169853976 us
+[VI] Frame=300, id=4, size=1920x1080, pts=12174899902 us
+[VI] Frame=400, id=4, size=1920x1080, pts=12179945827 us
+```
+
+### 10.2 日志中警告的说明
+
+`height is towards 16 alignment` 表示底层 VIN/ISP 按 16 像素对高度做内存对齐。传感器和 ISP 工作尺寸为 1920×1088，而应用取得的有效图像仍为 1920×1080，因此该提示不是采集失败。
+
+`isp0_1920_1088_20_0_gc2053_mipi_ctx_saved.bin failed` 表示没有找到可选的 ISP 上下文缓存文件。随后日志显示系统已经成功加载 GC2053 对应的 ISP 配置，因此不影响本次采集。
+
+启动初期出现一次 `GetFrame failed`，随后帧持续正常输出。这是 ISP 和视频通道刚启动时首帧尚未就绪造成的 200 ms 超时，不属于持续性故障。
+
+`unable to subscribe to tdm event`、一次 `AEWB: stats error` 以及 `get sensor_temp failed` 均未阻断 ISP 和 VI 出帧。当前可作为底层驱动兼容性提示保留观察；只有后续出现连续取帧失败、曝光异常或画面异常时才需要继续定位。
+
+### 10.3 安全退出验证
+
+程序持续采集到第 905 帧后收到 `SIGINT`（信号 2），采集线程立即停止，随后依次关闭 VIPP、LDCI、ISP 和 MPP，最终以返回码 0 正常退出：
+
+```text
+[Main] Exit signal received: 2
+[VI] Capture thread stopped, total frames=905
+DisableVipp[4]: vfmt.bufs:5, online:0
+[ISP]close isp device[0] success!
+[VI] Video capture stopped
+MonitorEnvVar thread will exit!
+[Main] Application exited with code: 0
+```
+
+从收到退出信号到采集线程结束约为 18 ms，没有出现线程等待超时、通道销毁失败或 ISP 关闭失败。退出顺序符合设计要求：先停止使用视频帧的线程，再关闭 VI/ISP，最后退出整个 MPP 平台。
+
+ISP 在退出时还成功生成了 `/mnt/extsd/isp0_1920_1088_20_0_gc2053_mipi_ctx_saved.bin`。下次启动时可以直接读取该上下文缓存，首次运行时的“找不到 ISP 上下文缓存文件”警告预计不会再次出现。
+
+### 10.4 阶段结论
+
+阶段 2 的交叉编译、摄像头识别、ISP 启动、VI 连续取帧、帧归还、PTS 递增和信号触发安全退出均已通过 V853 实机验证。本阶段验收完成，可以进入阶段 3：G2D 图像旋转与 VO/LCD 实时显示。
