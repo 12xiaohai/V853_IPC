@@ -12,7 +12,10 @@ OBJDUMP = $(COMPILE_PREX)objdump
 
 # Make the bundled OpenWrt toolchain independent of Tina's STAGING_DIR.
 TOOLCHAIN_ROOT := $(abspath $(dir $(COMPILE_PREX))/..)
-TOOLCHAIN_SYS_INCS := -isystem $(TOOLCHAIN_ROOT)/include
+# The relocated GCC toolchain no longer has Tina's original staging sysroot.
+# Put its C headers after GCC/libstdc++ headers so C++ #include_next directives
+# (for example <cstdlib> -> <stdlib.h>) can resolve them correctly.
+TOOLCHAIN_SYS_INCS := -idirafter $(TOOLCHAIN_ROOT)/include
 TOOLCHAIN_SYS_LIBS := -B$(TOOLCHAIN_ROOT)/lib/ -L$(TOOLCHAIN_ROOT)/lib
 
 #全志芯片头文件选项
