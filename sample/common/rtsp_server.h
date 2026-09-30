@@ -33,6 +33,11 @@ int rtsp_server_send_video(int id,
                            unsigned int size,
                            uint64_t pts,
                            RtspFrameType frame_type);
+/* 向同一个媒体会话追加一帧带 ADTS 头的 AAC 数据。 */
+int rtsp_server_send_audio(int id,
+                           unsigned char *data,
+                           unsigned int size,
+                           uint64_t pts);
 void rtsp_server_stop(int id);
 void rtsp_server_close(int id);
 

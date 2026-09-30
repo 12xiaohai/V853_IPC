@@ -7,6 +7,15 @@
  */
 typedef struct AudioEncoderContext AudioEncoderContext;
 
+/*
+ * AENC 取到一帧 AAC 后调用。回调必须在返回前完成深拷贝，因为随后
+ * AW_MPI_AENC_ReleaseStream() 会把编码缓冲归还给 MPP。
+ */
+typedef int (*AudioEncoderFrameCallback)(void *opaque,
+                                         const unsigned char *data,
+                                         unsigned int size,
+                                         unsigned long long pts);
+
 typedef struct AudioEncoderConfig {
     int ai_device;          /* 音频输入设备号，板载 AudioCodec 使用 0。 */
     int ai_channel;         /* AI 通道号。 */
@@ -19,6 +28,8 @@ typedef struct AudioEncoderConfig {
     int bit_rate;           /* AAC 目标码率；0 表示采用 SDK 默认值。 */
     int timeout_ms;         /* AENC GetStream 的超时时间。 */
     const char *output_path;/* 带 ADTS 帧头的 AAC 文件保存路径。 */
+    AudioEncoderFrameCallback frame_callback; /* 可选的 RTSP 音频消费者。 */
+    void *frame_callback_opaque;
 } AudioEncoderConfig;
 
 /* 生命周期必须遵循 create -> start -> stop -> destroy。 */

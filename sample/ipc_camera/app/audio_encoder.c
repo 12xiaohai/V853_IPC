@@ -110,6 +110,20 @@ static void *audio_encoder_stream_thread(void *argument)
                       (unsigned long long)stream.mTimeStamp);
                 fflush(encoder->output_file);
             }
+
+            /*
+             * RTSP 回调必须发生在 ReleaseStream 之前。RTSP 模块会立即
+             * 深拷贝 AAC 帧，因此归还 AENC 缓冲后网络线程仍可安全发送。
+             */
+            if (encoder->config.frame_callback != NULL &&
+                encoder->config.frame_callback(
+                    encoder->config.frame_callback_opaque,
+                    stream.pStream,
+                    stream.mLen,
+                    (unsigned long long)stream.mTimeStamp) != 0) {
+                alogw("[AENC] RTSP audio queue rejected frame: id=%d",
+                      stream.mId);
+            }
         }
 
         /* GetStream 成功后必须归还码流，否则 AENC 输出缓冲会耗尽。 */

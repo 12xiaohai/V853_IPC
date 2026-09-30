@@ -35,8 +35,10 @@ client can join the stream at a key-frame boundary. Stage 6.1 verified AI
 device 0 by capturing 16 kHz, 16-bit mono PCM. Stage 6.2 now binds AI channel 0
 to AENC channel 0 inside MPP and writes ADTS-framed AAC to
 `/mnt/UDISK/sample_demo.aac`. The raw PCM implementation remains as a
-standalone diagnostic example, but it is no longer started by `main.c`. RTSP
-audio and A/V synchronization will be added after independent AAC validation.
+standalone diagnostic example, but it is no longer started by `main.c`. Stage
+6.3 adds a separate bounded AAC queue to the RTSP service. H.264 and AAC frames
+retain their original MPP microsecond PTS and are submitted to TinyServer in
+media-time order for synchronized network playback.
 
 Build in a Linux environment:
 

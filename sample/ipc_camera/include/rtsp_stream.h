@@ -30,6 +30,11 @@ int rtsp_stream_push_h264(RtspStreamContext *context,
                           size_t size2,
                           uint64_t pts,
                           int key_frame);
+/* 深拷贝 AENC 的一帧 ADTS AAC，并放入独立的音频环形队列。 */
+int rtsp_stream_push_aac(RtspStreamContext *context,
+                         const unsigned char *data,
+                         size_t size,
+                         uint64_t pts);
 int rtsp_stream_stop(RtspStreamContext *context);
 void rtsp_stream_destroy(RtspStreamContext *context);
 

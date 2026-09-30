@@ -13,12 +13,22 @@ typedef struct RtspVideoFrame {
     int key_frame;       /* 1=IDR/I 帧，0=P 帧。 */
 } RtspVideoFrame;
 
+typedef struct RtspAudioFrame {
+    unsigned char *data; /* 应用自己拥有的单帧 ADTS AAC 副本。 */
+    unsigned int size;
+    uint64_t pts;        /* 与视频使用同一 MPP 时钟域的微秒时间戳。 */
+} RtspAudioFrame;
+
 struct RtspStreamContext {
     RtspStreamConfig config;
-    RtspVideoFrame *queue;       /* 固定容量的环形队列数组。 */
-    unsigned int head;           /* 消费者下一次取帧位置。 */
-    unsigned int tail;           /* 生产者下一次写帧位置。 */
-    unsigned int count;          /* 当前已入队但未发送的帧数。 */
+    RtspVideoFrame *video_queue; /* 视频和音频分别排队，互不覆盖。 */
+    unsigned int video_head;
+    unsigned int video_tail;
+    unsigned int video_count;
+    RtspAudioFrame *audio_queue;
+    unsigned int audio_head;
+    unsigned int audio_tail;
+    unsigned int audio_count;
     pthread_mutex_t mutex;
     pthread_cond_t frame_available; /* 队列从空变为非空时唤醒发送线程。 */
     pthread_t thread;
@@ -28,21 +38,35 @@ struct RtspStreamContext {
     int server_started;
     int thread_started;
     int stop_requested;
-    unsigned long long frames_queued;
-    unsigned long long frames_sent;
-    unsigned long long frames_dropped;
+    unsigned long long video_queued;
+    unsigned long long video_sent;
+    unsigned long long video_dropped;
+    unsigned long long audio_queued;
+    unsigned long long audio_sent;
+    unsigned long long audio_dropped;
+    uint64_t first_video_pts;
+    uint64_t last_video_pts;
+    uint64_t first_audio_pts;
+    uint64_t last_audio_pts;
 };
 
-/* 释放帧数据并把描述符清零，避免重复 free。 */
-static void release_frame(RtspVideoFrame *frame)
+/* 释放视频帧数据并把描述符清零，避免重复 free。 */
+static void release_video_frame(RtspVideoFrame *frame)
+{
+    free(frame->data);
+    memset(frame, 0, sizeof(*frame));
+}
+
+/* 音频帧也由入队函数深拷贝，所以发送后必须由 RTSP 模块释放。 */
+static void release_audio_frame(RtspAudioFrame *frame)
 {
     free(frame->data);
     memset(frame, 0, sizeof(*frame));
 }
 
 /*
- * 消费者线程：队列空时睡眠，有帧时取出一帧发给 TinyServer。
- * 网络发送与 VENC 取流分开，防止网络抖动卡住编码器。
+ * 消费者线程：两个队列都为空时睡眠，有数据时优先发送 PTS 较早的一帧。
+ * 网络发送与 VENC/AENC 取流分开，防止网络抖动卡住编码器。
  */
 static void *rtsp_sender_thread(void *argument)
 {
@@ -50,42 +74,89 @@ static void *rtsp_sender_thread(void *argument)
 
     alogd("[RTSP] Sender thread started");
     for (;;) {
-        RtspVideoFrame frame;
+        RtspVideoFrame video_frame;
+        RtspAudioFrame audio_frame;
+        int send_audio = 0;
 
-        memset(&frame, 0, sizeof(frame));
+        memset(&video_frame, 0, sizeof(video_frame));
+        memset(&audio_frame, 0, sizeof(audio_frame));
         pthread_mutex_lock(&context->mutex);
         /* pthread_cond_wait 会在等待时自动释放 mutex，被唤醒后再重新加锁。 */
-        while (context->count == 0U && !context->stop_requested) {
+        while (context->video_count == 0U && context->audio_count == 0U &&
+               !context->stop_requested) {
             pthread_cond_wait(&context->frame_available, &context->mutex);
         }
-        if (context->count == 0U && context->stop_requested) {
+        if (context->video_count == 0U && context->audio_count == 0U &&
+            context->stop_requested) {
             pthread_mutex_unlock(&context->mutex);
             break;
         }
 
-        /* 只在锁内移动队列指针，真正的 RTSP 发送在解锁后进行。 */
-        frame = context->queue[context->head];
-        memset(&context->queue[context->head], 0,
-               sizeof(context->queue[context->head]));
-        context->head = (context->head + 1U) % context->config.queue_capacity;
-        --context->count;
+        /*
+         * 两种帧都存在时比较 PTS，使进入 TinyServer 的顺序尽量接近媒体
+         * 时间线。音频和视频仍使用各自原始 PTS，不人为改写或硬配对。
+         */
+        if (context->audio_count > 0U &&
+            (context->video_count == 0U ||
+             context->audio_queue[context->audio_head].pts <=
+                 context->video_queue[context->video_head].pts)) {
+            send_audio = 1;
+            audio_frame = context->audio_queue[context->audio_head];
+            memset(&context->audio_queue[context->audio_head],
+                   0,
+                   sizeof(context->audio_queue[context->audio_head]));
+            context->audio_head =
+                (context->audio_head + 1U) % context->config.queue_capacity;
+            --context->audio_count;
+        } else {
+            video_frame = context->video_queue[context->video_head];
+            memset(&context->video_queue[context->video_head],
+                   0,
+                   sizeof(context->video_queue[context->video_head]));
+            context->video_head =
+                (context->video_head + 1U) % context->config.queue_capacity;
+            --context->video_count;
+        }
         pthread_mutex_unlock(&context->mutex);
 
-        if (rtsp_server_send_video(context->config.session_id,
-                                   frame.data,
-                                   frame.size,
-                                   frame.pts,
-                                   frame.key_frame ? RTSP_FRAME_TYPE_I
-                                                   : RTSP_FRAME_TYPE_P) == 0) {
-            ++context->frames_sent;
+        if (send_audio) {
+            if (rtsp_server_send_audio(context->config.session_id,
+                                       audio_frame.data,
+                                       audio_frame.size,
+                                       audio_frame.pts) == 0) {
+                ++context->audio_sent;
+            }
+            release_audio_frame(&audio_frame);
+        } else {
+            if (rtsp_server_send_video(
+                    context->config.session_id,
+                    video_frame.data,
+                    video_frame.size,
+                    video_frame.pts,
+                    video_frame.key_frame ? RTSP_FRAME_TYPE_I
+                                          : RTSP_FRAME_TYPE_P) == 0) {
+                ++context->video_sent;
+            }
+            release_video_frame(&video_frame);
         }
-        release_frame(&frame);
     }
 
-    alogd("[RTSP] Sender thread stopped: queued=%llu, sent=%llu, dropped=%llu",
-          context->frames_queued,
-          context->frames_sent,
-          context->frames_dropped);
+    alogd("[RTSP] Sender stopped: video=%llu/%llu dropped=%llu, "
+          "audio=%llu/%llu dropped=%llu",
+          context->video_sent,
+          context->video_queued,
+          context->video_dropped,
+          context->audio_sent,
+          context->audio_queued,
+          context->audio_dropped);
+    if (context->first_video_pts != 0U && context->first_audio_pts != 0U) {
+        /* 正值表示音频 PTS 晚于视频，负值表示音频 PTS 早于视频。 */
+        alogd("[RTSP] A/V PTS offset: first=%lld us, last=%lld us",
+              (long long)context->first_audio_pts -
+                  (long long)context->first_video_pts,
+              (long long)context->last_audio_pts -
+                  (long long)context->last_video_pts);
+    }
     return NULL;
 }
 
@@ -104,20 +175,27 @@ RtspStreamContext *rtsp_stream_create(const RtspStreamConfig *config)
         return NULL;
     }
     context->config = *config;
-    context->queue = calloc(config->queue_capacity, sizeof(*context->queue));
-    if (context->queue == NULL) {
+    context->video_queue =
+        calloc(config->queue_capacity, sizeof(*context->video_queue));
+    context->audio_queue =
+        calloc(config->queue_capacity, sizeof(*context->audio_queue));
+    if (context->video_queue == NULL || context->audio_queue == NULL) {
+        free(context->audio_queue);
+        free(context->video_queue);
         free(context);
         return NULL;
     }
     if (pthread_mutex_init(&context->mutex, NULL) != 0) {
-        free(context->queue);
+        free(context->audio_queue);
+        free(context->video_queue);
         free(context);
         return NULL;
     }
     context->mutex_initialized = 1;
     if (pthread_cond_init(&context->frame_available, NULL) != 0) {
         pthread_mutex_destroy(&context->mutex);
-        free(context->queue);
+        free(context->audio_queue);
+        free(context->video_queue);
         free(context);
         return NULL;
     }
@@ -155,8 +233,9 @@ int rtsp_stream_start(RtspStreamContext *context)
         return -1;
     }
     context->thread_started = 1;
-    alogd("[RTSP] Video service started: session=%d, queue=%u",
+    alogd("[RTSP] Audio/video service started: session=%d, queue=%u+%u",
           context->config.session_id,
+          context->config.queue_capacity,
           context->config.queue_capacity);
     return 0;
 }
@@ -201,7 +280,7 @@ int rtsp_stream_push_h264(RtspStreamContext *context,
      */
     frame.data = malloc(total_size);
     if (frame.data == NULL) {
-        ++context->frames_dropped;
+        ++context->video_dropped;
         return -1;
     }
     destination = frame.data;
@@ -228,20 +307,77 @@ int rtsp_stream_push_h264(RtspStreamContext *context,
     pthread_mutex_lock(&context->mutex);
     if (context->stop_requested) {
         pthread_mutex_unlock(&context->mutex);
-        release_frame(&frame);
+        release_video_frame(&frame);
         return -1;
     }
-    /* 队列满时丢最旧帧，不阻塞 VENC，直播优先保持低延迟。 */
-    if (context->count == context->config.queue_capacity) {
-        release_frame(&context->queue[context->head]);
-        context->head = (context->head + 1U) % context->config.queue_capacity;
-        --context->count;
-        ++context->frames_dropped;
+    if (context->video_queued == 0ULL) {
+        context->first_video_pts = pts;
     }
-    context->queue[context->tail] = frame;
-    context->tail = (context->tail + 1U) % context->config.queue_capacity;
-    ++context->count;
-    ++context->frames_queued;
+    context->last_video_pts = pts;
+    /* 队列满时丢最旧帧，不阻塞 VENC，直播优先保持低延迟。 */
+    if (context->video_count == context->config.queue_capacity) {
+        release_video_frame(&context->video_queue[context->video_head]);
+        context->video_head =
+            (context->video_head + 1U) % context->config.queue_capacity;
+        --context->video_count;
+        ++context->video_dropped;
+    }
+    context->video_queue[context->video_tail] = frame;
+    context->video_tail =
+        (context->video_tail + 1U) % context->config.queue_capacity;
+    ++context->video_count;
+    ++context->video_queued;
+    pthread_cond_signal(&context->frame_available);
+    pthread_mutex_unlock(&context->mutex);
+    return 0;
+}
+
+int rtsp_stream_push_aac(RtspStreamContext *context,
+                         const unsigned char *data,
+                         size_t size,
+                         uint64_t pts)
+{
+    RtspAudioFrame frame;
+
+    if (context == NULL || !context->thread_started || data == NULL ||
+        size == 0U || size > 0xffffffffU) {
+        return -1;
+    }
+
+    memset(&frame, 0, sizeof(frame));
+    /* AENC_ReleaseStream 后原缓冲失效，因此回调中必须完成深拷贝。 */
+    frame.data = malloc(size);
+    if (frame.data == NULL) {
+        ++context->audio_dropped;
+        return -1;
+    }
+    memcpy(frame.data, data, size);
+    frame.size = (unsigned int)size;
+    frame.pts = pts;
+
+    pthread_mutex_lock(&context->mutex);
+    if (context->stop_requested) {
+        pthread_mutex_unlock(&context->mutex);
+        release_audio_frame(&frame);
+        return -1;
+    }
+    if (context->audio_queued == 0ULL) {
+        context->first_audio_pts = pts;
+    }
+    context->last_audio_pts = pts;
+    /* 音频队列满时同样丢最旧帧，直播优先维持当前时刻和低延迟。 */
+    if (context->audio_count == context->config.queue_capacity) {
+        release_audio_frame(&context->audio_queue[context->audio_head]);
+        context->audio_head =
+            (context->audio_head + 1U) % context->config.queue_capacity;
+        --context->audio_count;
+        ++context->audio_dropped;
+    }
+    context->audio_queue[context->audio_tail] = frame;
+    context->audio_tail =
+        (context->audio_tail + 1U) % context->config.queue_capacity;
+    ++context->audio_count;
+    ++context->audio_queued;
     pthread_cond_signal(&context->frame_available);
     pthread_mutex_unlock(&context->mutex);
     return 0;
@@ -279,11 +415,15 @@ int rtsp_stream_stop(RtspStreamContext *context)
     if (context->mutex_initialized) {
         pthread_mutex_lock(&context->mutex);
         for (index = 0; index < context->config.queue_capacity; ++index) {
-            release_frame(&context->queue[index]);
+            release_video_frame(&context->video_queue[index]);
+            release_audio_frame(&context->audio_queue[index]);
         }
-        context->head = 0;
-        context->tail = 0;
-        context->count = 0;
+        context->video_head = 0;
+        context->video_tail = 0;
+        context->video_count = 0;
+        context->audio_head = 0;
+        context->audio_tail = 0;
+        context->audio_count = 0;
         pthread_mutex_unlock(&context->mutex);
     }
     return 0;
@@ -302,6 +442,7 @@ void rtsp_stream_destroy(RtspStreamContext *context)
     if (context->mutex_initialized) {
         pthread_mutex_destroy(&context->mutex);
     }
-    free(context->queue);
+    free(context->audio_queue);
+    free(context->video_queue);
     free(context);
 }

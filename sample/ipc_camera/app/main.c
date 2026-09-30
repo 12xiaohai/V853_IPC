@@ -54,6 +54,15 @@ static int push_encoded_frame_to_rtsp(
                                  key_frame);
 }
 
+/* AENC 与 RTSP 音频队列之间的适配函数，保留编码器给出的原始 PTS。 */
+static int push_encoded_audio_to_rtsp(void *opaque,
+                                      const unsigned char *data,
+                                      unsigned int size,
+                                      unsigned long long pts)
+{
+    return rtsp_stream_push_aac((RtspStreamContext *)opaque, data, size, pts);
+}
+
 static void handle_exit_signal(int signal_number)
 {
     /*
@@ -246,8 +255,8 @@ int main(int argc, char *argv[])
     video_encoder_started = 1;
 
     /*
-     * 阶段 6.2 把 AI 与 AENC 绑定。MPP 在内部传递 PCM，应用线程只取出
-     * 带 ADTS 头的 AAC 码流并保存，先独立验证音频编码链路。
+     * AI 与 AENC 由 MPP 绑定，应用取出带 ADTS 头的 AAC。阶段 6.3 在
+     * 保留本地 AAC 文件的同时，通过回调把同一帧送入 RTSP 音频队列。
      */
     memset(&audio_config, 0, sizeof(audio_config));
     audio_config.ai_device = 0;
@@ -261,6 +270,11 @@ int main(int argc, char *argv[])
     audio_config.bit_rate = 0;
     audio_config.timeout_ms = 200;
     audio_config.output_path = "/mnt/UDISK/sample_demo.aac";
+    /* RTSP 未启动时保持回调为空，本地 AAC 文件仍可独立生成。 */
+    if (rtsp_stream_started) {
+        audio_config.frame_callback = push_encoded_audio_to_rtsp;
+        audio_config.frame_callback_opaque = rtsp_stream;
+    }
 
     audio_encoder = audio_encoder_create(&audio_config);
     if (audio_encoder == NULL) {

@@ -154,6 +154,23 @@ int rtsp_server_send_video(int id,
     return 0;
 }
 
+int rtsp_server_send_audio(int id,
+                           unsigned char *data,
+                           unsigned int size,
+                           uint64_t pts)
+{
+    if (!valid_id(id) || g_streams[id] == NULL || data == NULL || size == 0U) {
+        return -1;
+    }
+
+    /*
+     * MediaStream 创建时已经声明 AUDIO_TYPE_AAC。这里把 AENC 输出的
+     * 单帧 AAC 和其原始微秒 PTS 交给 TinyServer，供音频 RTP 轨使用。
+     */
+    g_streams[id]->appendAudioData(data, size, pts);
+    return 0;
+}
+
 void rtsp_server_stop(int id)
 {
     if (valid_id(id) && g_servers[id] != NULL) {
