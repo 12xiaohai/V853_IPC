@@ -221,6 +221,87 @@ LCD 应显示方向正确、连续流畅的摄像头画面。按 `Ctrl+C` 后预
 - Ctrl+C 后 VI、VO、MMZ、G2D 和 MPP 均正常释放；
 - 应用退出码为 0，再次运行仍能正常显示。
 
-## 11. 当前验证状态
+## 11. 开发板验证结果
 
-新增源码已经通过项目 SDK 头文件下的 ARM 目标严格语法检查，未发现应用代码的声明、类型、格式字符串或语法错误。完整交叉链接和 V853 开发板 LCD 显示效果仍需按第 9 节进行实机验收。
+本阶段代码已经完成交叉编译，并于 2026 年 9 月 30 日在 V853 开发板上运行验证。
+
+### 11.1 G2D 与 VO 初始化结果
+
+G2D 成功打开，旋转前后尺寸符合设计；5 个 MMZ 缓冲全部申请成功；VO Layer 0、Channel 0 和 480×800 显示窗口均成功启动：
+
+```text
+[G2D] Opened: 1920x1080 -> 1080x1920, rotation=270
+[VO] Allocated 5 MMZ buffers, each 1080x1920 NV21
+AW_MPI_VO_SetVideoLayerAttr: [0, 0, 320x240]->[0, 0, 480x800]
+[VO] Display started: layer=0, chn=0, lcd=480x800
+```
+
+VO 渲染器收到首帧后报告的源图像尺寸为 1080×1920，证明 G2D 旋转后的帧尺寸已经被 VO 正确识别：
+
+```text
+hwd_layer_set_src: size0[1080x1920], size1[540x960]
+VideoRender_ComponentThread: displayRect[0,0][1080x1920], bufSize[1080x1920]
+```
+
+### 11.2 连续显示与缓冲回收结果
+
+运行期间 VI 采集计数和 VO 提交计数保持一致，并持续增长：
+
+```text
+[VI] Frame=1, size=1920x1080, pts=1492777074 us
+[VO] Submitted frame=1, pts=1492777074 us
+[VI] Frame=100, size=1920x1080, pts=1497771666 us
+[VO] Submitted frame=100, pts=1497771666 us
+[VI] Frame=200, size=1920x1080, pts=1502817592 us
+[VO] Submitted frame=200, pts=1502817592 us
+[VI] Frame=300, size=1920x1080, pts=1507863519 us
+[VO] Submitted frame=300, pts=1507863519 us
+```
+
+从第 1 帧到第 300 帧约经过 15.09 秒，实际处理帧率约为 19.82 fps，与 VI 配置的 20 fps 相符。运行期间没有出现 `BITBLT failed`、`SendFrame failed` 或输出缓冲耗尽。
+
+退出统计为：
+
+```text
+[VO] Display stopped: submitted=334, released=334, dropped=0
+```
+
+这三个数字说明：
+
+- 334 个采集帧全部经过 G2D 并成功提交给 VO；
+- 334 个 MMZ 输出帧全部通过 VO 回调归还；
+- 没有因帧池耗尽而丢弃任何一帧；
+- 退出时不存在仍被 VO 持有的输出缓冲。
+
+### 11.3 安全退出结果
+
+收到 `SIGINT` 后，采集线程先停止，随后 VI/ISP、VO、G2D 和 MPP 依次关闭，应用最终返回 0：
+
+```text
+[Main] Exit signal received: 2
+[VI] Capture thread stopped, total frames=334
+[VI] Video capture stopped
+VideoLayer[0]: release [2]used inputFrame!
+[G2D] Closed
+[VO] Display stopped: submitted=334, released=334, dropped=0
+[Main] Application exited with code: 0
+```
+
+其中 `release [2]used inputFrame` 表示 VO 停止时释放内部仍缓存的两帧，与设置的 VO 显示缓存数 2 一致。随后 `released=334` 与 `submitted=334` 相等，说明释放完整。
+
+### 11.4 内核显示警告说明
+
+日志中的以下信息来自显示驱动，而不是应用层 G2D 或 VO 接口失败：
+
+```text
+fcm lut 0 not find, auto retry after init
+disp_mgr_set_layer_config: NULL hdl!
+```
+
+`fcm lut` 表示显示引擎没有找到对应的色彩管理查找表，并会在初始化后自动重试；本次没有影响 VO 启动、送帧和退出。
+
+`NULL hdl!` 出现在 VO 通道停止、显示层撤销的退出阶段。应用层所有释放接口仍然执行成功，最终返回码为 0，因此当前可作为底层显示驱动的退出提示保留观察。如果后续出现重新启动无法显示或关屏异常，再进一步检查显示层关闭顺序。
+
+### 11.5 阶段结论
+
+从软件日志和资源统计看，G2D 旋转、VO 送帧、回调回收和安全退出均已通过实机验证。最后还需根据 LCD 肉眼效果确认画面方向、画面比例和显示区域是否正确；日志本身无法判断图像是否倒置、镜像或拉伸。确认显示效果正常后，阶段 3 即可正式验收完成。
