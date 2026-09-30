@@ -4,6 +4,11 @@
 
 #include <utils/plat_log.h>
 
+/*
+ * 为整个应用分配一份零初始化的上下文。
+ * calloc 与 malloc 的区别是：calloc 会把内存全部清 0，因此各种
+ * "xxx_created/started" 状态标志初始都是未创建，便于失败时安全回滚。
+ */
 IpCameraContext *constructIpCameraContext(void)
 {
     IpCameraContext *context = calloc(1, sizeof(*context));
@@ -13,9 +18,10 @@ IpCameraContext *constructIpCameraContext(void)
         return NULL;
     }
 
-    /* Keep the first reconstructed VI path consistent with the original
-     * real-time preview path. These values can be moved to a configuration
-     * file after the capture path has been verified on the board. */
+    /*
+     * 实时预览沿用原项目的 VIPP 4。VIPP 可理解为 VI 的一条图像管线，
+     * 它从 ISP 0 取得 GC2053 摄像头的数据。NV21 是 Y 平面 + VU 交错平面。
+     */
     context->video_capture.device = 4;
     context->video_capture.isp_device = 0;
     context->video_capture.channel = 0;
@@ -30,5 +36,6 @@ IpCameraContext *constructIpCameraContext(void)
 
 void destructIpCameraContext(IpCameraContext *context)
 {
+    /* free(NULL) 在 C 语言中是安全的，因此无需额外判空。 */
     free(context);
 }

@@ -20,8 +20,13 @@
 
 static pthread_mutex_t g_mutex_mpp;
 static IpCameraContext *g_pContext;
+/* sig_atomic_t 保证信号处理函数对该变量的读写不会被打断。 */
 static volatile sig_atomic_t g_exit_signal;
 
+/*
+ * 这是 VENC 与 RTSP 之间的适配函数。opaque 实际指向 RtspStreamContext，
+ * 将编码器的三段帧数据原样交给 RTSP 模块深拷贝。
+ */
 static int push_encoded_frame_to_rtsp(
     void *opaque,
     const unsigned char *header,
@@ -50,9 +55,14 @@ static int push_encoded_frame_to_rtsp(
 
 static void handle_exit_signal(int signal_number)
 {
+    /*
+     * 信号处理函数中只设置标志，不能调用 printf、free 或 MPP API。
+     * 这些函数不是异步信号安全的，真正的清理由主线程完成。
+     */
     g_exit_signal = signal_number;
 }
 
+/* 安装 Ctrl+C(SIGINT) 和系统结束(SIGTERM) 处理函数。 */
 static int install_signal_handlers(void)
 {
     struct sigaction action;
@@ -86,6 +96,10 @@ static int initialize_context(IpCameraContext *context)
 
 int main(int argc, char *argv[])
 {
+    /*
+     * ret 默认为失败。只有程序进入主循环并收到正常退出信号后，
+     * 才改为 EXIT_SUCCESS。每个 started/initialized 标志决定 cleanup 能否操作对应资源。
+     */
     int ret = EXIT_FAILURE;
     int mutex_initialized = 0;
     int log_initialized = 0;
@@ -103,6 +117,7 @@ int main(int argc, char *argv[])
 
     (void)argc;
 
+    /* 保留原项目的全局 MPP 互斥量，供后续多模块协作扩展。 */
     if (pthread_mutex_init(&g_mutex_mpp, NULL) != 0) {
         return EXIT_FAILURE;
     }
@@ -112,6 +127,7 @@ int main(int argc, char *argv[])
         goto cleanup;
     }
 
+    /* 先启动日志，以便后续每一个初始化错误都能被记录。 */
     if (init_glog(argv) != 0) {
         goto cleanup;
     }
@@ -133,12 +149,17 @@ int main(int argc, char *argv[])
         goto cleanup;
     }
 
+    /* MPP 是所有媒体通路的公共基础，必须第一个启动。 */
     if (platform_init() != 0) {
         aloge("[Main] Platform initialization failed");
         goto cleanup;
     }
     platform_initialized = 1;
 
+    /*
+     * 摄像头输出为 1920x1080 横屏，LCD 为 480x800 竖屏。
+     * 先用 G2D 旋转 270 度得到 1080x1920，再由 VO 缩放到 LCD 矩形。
+     */
     memset(&display_config, 0, sizeof(display_config));
     display_config.source_width = g_pContext->video_capture.width;
     display_config.source_height = g_pContext->video_capture.height;
@@ -162,12 +183,17 @@ int main(int argc, char *argv[])
     video_display_started = 1;
     g_pContext->video_capture.display = video_display;
 
+    /* 显示模块先于 VI 启动，避免采集到帧时还没有可用的显示目标。 */
     if (video_capture_start(&g_pContext->video_capture) != 0) {
         aloge("[Main] Video capture initialization failed");
         goto cleanup;
     }
     video_capture_started = 1;
 
+    /*
+     * RTSP 在 VENC 前启动，这样第一个编码关键帧就能立即入队。
+     * session 0 对应 /ch0；16 帧约为 0.8 秒的 20 fps 视频。
+     */
     memset(&rtsp_config, 0, sizeof(rtsp_config));
     rtsp_config.session_id = 0;
     rtsp_config.net_type = RTSP_NET_TYPE_WLAN0;
@@ -184,6 +210,10 @@ int main(int argc, char *argv[])
     }
     rtsp_stream_started = 1;
 
+    /*
+     * 编码使用独立 VIPP 0，与预览 VIPP 4 并行。VI -> VENC 由 MPP Bind
+     * 在内部传帧，应用只从 VENC 取压缩后的 H.264 数据。
+     */
     memset(&encoder_config, 0, sizeof(encoder_config));
     encoder_config.channel = 0;
     encoder_config.vi_device = 0;
@@ -211,6 +241,7 @@ int main(int argc, char *argv[])
     }
     video_encoder_started = 1;
 
+    /* 主线程不做媒体处理，只等待信号；实际工作由各子线程完成。 */
     alogd("[Main] Application is running; press Ctrl+C to exit");
     while (g_exit_signal == 0) {
         sleep(1);
@@ -220,7 +251,13 @@ int main(int argc, char *argv[])
     ret = EXIT_SUCCESS;
 
 cleanup:
-    if (video_encoder_started && video_encoder_stop(video_encoder) != 0) {
+    /*
+     * 统一失败回滚和正常退出入口。按启动顺序的反向销毁：
+     * VENC -> RTSP -> VI -> VO/G2D -> MPP -> 上下文 -> 日志。
+     * 先停 VENC 再停 RTSP，可保证销毁 RTSP 后不会再有新编码帧入队。
+     */
+
+     if (video_encoder_started && video_encoder_stop(video_encoder) != 0) {
         ret = EXIT_FAILURE;
     }
     video_encoder_destroy(video_encoder);

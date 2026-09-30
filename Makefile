@@ -1,5 +1,7 @@
-#使用gcc编译.O文件 COMPILE_PREX = /home/sdk/prebuilt/gcc/linux-x86/arm/toolchain-sunxi-musl/toolchain/bin/arm-openwrt-linux-muslgnueabi-
-#使用g++链接.O文件
+# ======================== 1. 交叉编译器 ========================
+# COMPILE_PREX 由 build.sh 传入，指向 ARM musl 工具链前缀。
+# .c 文件用 gcc 编译，.cpp 和最终可执行文件用 g++ 处理，
+# 因为 RTSP TinyServer 是 C++ 库，最终链接时需要 C++ 运行库。
 CXX = $(COMPILE_PREX)
 AR = $(COMPILE_PREX)ar
 CC = $(COMPILE_PREX)gcc
@@ -10,7 +12,7 @@ STRIP = $(COMPILE_PREX)strip
 OBJCOPY = $(COMPILE_PREX)objcopy
 OBJDUMP = $(COMPILE_PREX)objdump
 
-# Make the bundled OpenWrt toolchain independent of Tina's STAGING_DIR.
+# 让复制出来的 OpenWrt 工具链不再依赖 Tina SDK 原有的 STAGING_DIR。
 TOOLCHAIN_ROOT := $(abspath $(dir $(COMPILE_PREX))/..)
 # The relocated GCC toolchain no longer has Tina's original staging sysroot.
 # Put its C headers after GCC/libstdc++ headers so C++ #include_next directives
@@ -18,10 +20,11 @@ TOOLCHAIN_ROOT := $(abspath $(dir $(COMPILE_PREX))/..)
 TOOLCHAIN_SYS_INCS := -idirafter $(TOOLCHAIN_ROOT)/include
 TOOLCHAIN_SYS_LIBS := -B$(TOOLCHAIN_ROOT)/lib/ -L$(TOOLCHAIN_ROOT)/lib
 
-#全志芯片头文件选项
+# V853 芯片宏，SDK 头文件会根据它选择对应实现。
 AWCHIP_CFLAGS := -DAWCHIP=0x1886#AW_V853
 
-#编译所用变量
+# ======================== 2. 项目路径 ========================
+# abspath 把相对路径转成绝对路径，避免从不同目录调用 make 时找错文件。
 ROOT_DIR = $(abspath .)
 OUTPUT_DIR = $(ROOT_DIR)/output/
 OUTPUT_DIR_OBJS = $(OUTPUT_DIR)/objs
@@ -29,7 +32,8 @@ OUTPUT_DIR_OBJS = $(OUTPUT_DIR)/objs
 #sammple目录
 USER_SRC_BASE_DIR 	=  $(ROOT_DIR)/sample
 
-#多媒体静态库目录
+# ======================== 3. SDK 库目录 ========================
+# MPP、ISP、NPU 等库都保存在项目 sdk/ 内，因此编译不依赖父目录。
 mpp_lib_dir=$(ROOT_DIR)/sdk/aw_pack_src/lib_aw/lib/eyesee-mpp
 
 aiisp_dir=$(ROOT_DIR)/sdk/aw_pack_src/lib_aw/lib/libawaiisp

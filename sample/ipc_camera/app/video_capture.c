@@ -9,6 +9,10 @@
 
 #include "video_display.h"
 
+/*
+ * VI 采集线程：循环从 VIPP 虚拟通道取帧，交给显示模块处理，
+ * 然后立即归还 VI 帧。GetFrame 成功后的每一条路径都必须 ReleaseFrame。
+ */
 static void *video_capture_thread(void *argument)
 {
     VideoCaptureContext *capture = argument;
@@ -21,6 +25,7 @@ static void *video_capture_thread(void *argument)
         ERRORTYPE ret;
 
         memset(&frame, 0, sizeof(frame));
+        /* 带超时取帧，使 stop_requested 可以在有限时间内被检查。 */
         ret = AW_MPI_VI_GetFrame(capture->device,
                                  capture->channel,
                                  &frame,
@@ -30,6 +35,7 @@ static void *video_capture_thread(void *argument)
                 break;
             }
 
+            /* 只记录首次和每 25 次连续失败，避免硬件异常时刷屏。 */
             ++consecutive_failures;
             if (consecutive_failures == 1 ||
                 (consecutive_failures % 25U) == 0U) {
@@ -52,12 +58,14 @@ static void *video_capture_thread(void *argument)
                   (unsigned long long)frame.VFrame.mpts);
         }
 
+        /* display 可为 NULL，因此 VI 模块也能独立做采集测试。 */
         if (capture->display != NULL &&
             video_display_submit(capture->display, &frame) < 0) {
             alogw("[VI] Display processing failed for frame=%llu",
                   (unsigned long long)capture->frame_count);
         }
 
+        /* 显示模块已把像素旋转到自己的 MMZ 帧，所以现在可归还 VI 源帧。 */
         ret = AW_MPI_VI_ReleaseFrame(capture->device,
                                      capture->channel,
                                      &frame);
@@ -72,6 +80,10 @@ static void *video_capture_thread(void *argument)
     return NULL;
 }
 
+/*
+ * 按启动的反顺序销毁 VI 通路。每个状态标志使该函数既能处理
+ * 完整停止，也能处理“初始化进行到一半就失败”的回滚。
+ */
 static int video_capture_destroy_pipeline(VideoCaptureContext *capture)
 {
     int result = 0;
@@ -136,6 +148,7 @@ int video_capture_start(VideoCaptureContext *capture)
         return -1;
     }
 
+    /* 使用 V4L2 多平面 + MMAP 缓冲，NV21 共 Y/VU 两个平面。 */
     memset(&attributes, 0, sizeof(attributes));
     attributes.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
     attributes.memtype = V4L2_MEMORY_MMAP;
@@ -145,6 +158,7 @@ int video_capture_start(VideoCaptureContext *capture)
     attributes.format.colorspace = V4L2_COLORSPACE_JPEG;
     attributes.format.width = capture->width;
     attributes.format.height = capture->height;
+    /* 5 个采集缓冲可以吸收短时处理抖动，同时限制内存占用。 */
     attributes.nbufs = 5;
     attributes.nplanes = 2;
     attributes.fps = capture->frame_rate;
@@ -164,6 +178,7 @@ int video_capture_start(VideoCaptureContext *capture)
           capture->height,
           capture->frame_rate);
 
+    /* 创建顺序不能随意调换：先 VIPP，再 ISP，然后使能并创建通道。 */
     ret = AW_MPI_VI_CreateVipp(capture->device);
     if (ret != SUCCESS) {
         aloge("[VI] CreateVipp failed: ret=%d", ret);
@@ -219,6 +234,7 @@ int video_capture_start(VideoCaptureContext *capture)
     return 0;
 
 error:
+    /* 所有启动失败都走同一条回滚路径，避免遗漏硬件资源。 */
     video_capture_destroy_pipeline(capture);
     return -1;
 }
@@ -232,6 +248,7 @@ int video_capture_stop(VideoCaptureContext *capture)
         return -1;
     }
 
+    /* 先通知线程停止，join 确认它不再访问 VI，然后才销毁通道。 */
     capture->stop_requested = 1;
     if (capture->thread_started) {
         ret = pthread_join(capture->thread_id, NULL);

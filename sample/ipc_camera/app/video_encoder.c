@@ -14,13 +14,14 @@
 
 struct VideoEncoderContext {
     VideoEncoderConfig config;
-    char output_path[256];
-    FILE *output_file;
-    unsigned char *h264_header;
+    char output_path[256];           /* 内部副本，避免外部字符串提前失效。 */
+    FILE *output_file;               /* 阶段测试使用的本地 Annex-B 文件。 */
+    unsigned char *h264_header;      /* SPS/PPS 的应用层副本。 */
     size_t h264_header_size;
     pthread_t stream_thread;
     volatile int stop_requested;
 
+    /* 记录初始化进度，使 stop 可做失败回滚。 */
     int channel_created;
     int receiving;
     int thread_started;
@@ -36,6 +37,7 @@ struct VideoEncoderContext {
     unsigned long long encoded_bytes;
 };
 
+/* VENC 的一帧可被拆成最多三段，写文件时必须按 0->1->2 顺序拼接。 */
 static int write_stream_pack(FILE *file, const VENC_PACK_S *pack)
 {
     size_t written;
@@ -61,6 +63,10 @@ static int write_stream_pack(FILE *file, const VENC_PACK_S *pack)
     return 0;
 }
 
+/*
+ * 编码码流消费线程。原始 NV21 帧由 MPP Bind 直接从 VI 传到 VENC，
+ * 该线程只获取已压缩的 H.264，同时写本地文件并推入 RTSP 队列。
+ */
 static void *video_encoder_stream_thread(void *argument)
 {
     VideoEncoderContext *encoder = argument;
@@ -76,9 +82,11 @@ static void *video_encoder_stream_thread(void *argument)
 
         memset(&stream, 0, sizeof(stream));
         memset(&pack, 0, sizeof(pack));
+        /* 当前编码器按帧输出，一次 GetStream 接收一个 pack 描述符。 */
         stream.mPackCount = 1;
         stream.mpPack = &pack;
 
+        /* 200 ms 超时避免退出时永久阻塞在 GetStream。 */
         ret = AW_MPI_VENC_GetStream(encoder->config.channel, &stream, 200);
         if (ret != SUCCESS) {
             if (encoder->stop_requested) {
@@ -88,6 +96,7 @@ static void *video_encoder_stream_thread(void *argument)
         }
 
         stream_length = pack.mLen0 + pack.mLen1 + pack.mLen2;
+        /* IDR(I) 帧可作为新客户端开始解码的随机接入点。 */
         is_key_frame = pack.mDataType.enH264EType == H264E_NALU_ISLICE;
 
         if (stream_length == 0U) {
@@ -115,6 +124,10 @@ static void *video_encoder_stream_thread(void *argument)
                 fflush(encoder->output_file);
             }
 
+            /*
+             * 回调在 ReleaseStream 之前执行。RTSP 模块会在回调中完成深拷贝，
+             * 因此下面归还 VENC 缓冲后，发送线程仍可安全访问数据。
+             */
             if (encoder->config.frame_callback != NULL &&
                 encoder->config.frame_callback(
                     encoder->config.frame_callback_opaque,
@@ -134,6 +147,7 @@ static void *video_encoder_stream_thread(void *argument)
             }
         }
 
+        /* 每次 GetStream 成功都必须 ReleaseStream，否则 VENC 输出缓冲最终会耗尽。 */
         ret = AW_MPI_VENC_ReleaseStream(encoder->config.channel, &stream);
         if (ret != SUCCESS) {
             aloge("[VENC] ReleaseStream failed: ret=%d", ret);
@@ -147,12 +161,14 @@ static void *video_encoder_stream_thread(void *argument)
     return NULL;
 }
 
+/* 填充 H.264 编码器、CBR 码控和 GOP 参数。 */
 static void configure_channel_attributes(const VideoEncoderContext *encoder,
                                          VENC_CHN_ATTR_S *attributes)
 {
     unsigned int threshold_size;
     unsigned int buffer_size;
 
+    /* 先把 bit/s 换算成 byte/s，再按帧率估算单帧阈值和 VBV 容量。 */
     threshold_size = (unsigned int)(encoder->config.bit_rate / 8 /
                                     encoder->config.frame_rate * 15);
     buffer_size = (unsigned int)(encoder->config.bit_rate / 8 * 4) +
@@ -165,7 +181,7 @@ static void configure_channel_attributes(const VideoEncoderContext *encoder,
     attributes->VeAttr.AttrH264e.MaxPicHeight =
         (unsigned int)encoder->config.height;
     attributes->VeAttr.AttrH264e.BufSize = buffer_size;
-    attributes->VeAttr.AttrH264e.Profile = 1;
+    attributes->VeAttr.AttrH264e.Profile = 1; /* 1 表示 H.264 Main Profile。 */
     attributes->VeAttr.AttrH264e.bByFrame = TRUE;
     attributes->VeAttr.AttrH264e.PicWidth =
         (unsigned int)encoder->config.width;
@@ -185,6 +201,7 @@ static void configure_channel_attributes(const VideoEncoderContext *encoder,
     attributes->VeAttr.mVeRefFrameLbcMode = 0;
     attributes->VeAttr.mVeRecRefBufReduceEnable = 0;
 
+    /* CBR（恒定码率）便于控制 RTSP 网络带宽。 */
     attributes->RcAttr.mRcMode = VENC_RC_MODE_H264CBR;
     attributes->RcAttr.mProductMode = 1;
     attributes->RcAttr.mAttrH264Cbr.mGop =
@@ -202,6 +219,7 @@ static void configure_channel_attributes(const VideoEncoderContext *encoder,
     attributes->GopAttr.mGopSize = encoder->config.gop_size;
 }
 
+/* 限制量化参数 QP：QP 越小画质越好，但码流通常越大。 */
 static int configure_rate_control(VideoEncoderContext *encoder)
 {
     VENC_RC_PARAM_S parameters;
@@ -229,6 +247,7 @@ static int configure_rate_control(VideoEncoderContext *encoder)
     return 0;
 }
 
+/* 编码专用 VIPP 0 的 VI 输入参数，与预览 VIPP 4 互相独立。 */
 static void configure_vi_attributes(const VideoEncoderContext *encoder,
                                     VI_ATTR_S *attributes)
 {
@@ -260,6 +279,7 @@ VideoEncoderContext *video_encoder_create(const VideoEncoderConfig *config)
         return NULL;
     }
 
+    /* calloc 让所有资源状态标志默认为 0。 */
     encoder = calloc(1, sizeof(*encoder));
     if (encoder == NULL) {
         return NULL;
@@ -288,6 +308,7 @@ int video_encoder_start(VideoEncoderContext *encoder)
         return -1;
     }
 
+    /* 启动编码专用 VI 通路。 */
     configure_vi_attributes(encoder, &vi_attributes);
     ret = AW_MPI_VI_CreateVipp(encoder->config.vi_device);
     if (ret != SUCCESS) {
@@ -325,6 +346,7 @@ int video_encoder_start(VideoEncoderContext *encoder)
     }
     encoder->vi_channel_created = 1;
 
+    /* VI 就绪后创建 VENC 通道并配置码控。 */
     configure_channel_attributes(encoder, &attributes);
     ret = AW_MPI_VENC_CreateChn(encoder->config.channel, &attributes);
     if (ret != SUCCESS) {
@@ -337,12 +359,17 @@ int video_encoder_start(VideoEncoderContext *encoder)
         goto error;
     }
 
+    /* wb 会清空旧文件，并以二进制方式写入本次 H.264 码流。 */
     encoder->output_file = fopen(encoder->output_path, "wb");
     if (encoder->output_file == NULL) {
         aloge("[VENC] Open output file failed: %s", encoder->output_path);
         goto error;
     }
 
+    /*
+     * SPS/PPS 描述分辨率、Profile、Level 等解码参数。文件开头写一次，
+     * RTSP 则在每个关键帧前重复附加，便于客户端中途连入。
+     */
     memset(&header, 0, sizeof(header));
     ret = AW_MPI_VENC_GetH264SpsPpsInfo(encoder->config.channel, &header);
     if (ret != SUCCESS || header.pBuffer == NULL || header.nLength == 0U) {
@@ -354,6 +381,7 @@ int video_encoder_start(VideoEncoderContext *encoder)
         aloge("[VENC] Write SPS/PPS failed");
         goto error;
     }
+    /* SDK 返回的 header 缓冲生命周期不由应用保证，因此保存自己的副本。 */
     encoder->h264_header = malloc(header.nLength);
     if (encoder->h264_header == NULL) {
         aloge("[VENC] Allocate SPS/PPS copy failed");
@@ -368,6 +396,10 @@ int video_encoder_start(VideoEncoderContext *encoder)
     venc_mpp_channel.mModId = MOD_ID_VENC;
     venc_mpp_channel.mDevId = 0;
     venc_mpp_channel.mChnId = encoder->config.channel;
+    /*
+     * Bind 后由 MPP 在内核/媒体组件之间传递帧描述符和缓冲所有权，
+     * 应用无需自己 GetFrame + SendFrame，也无需 CPU 拷贝 1920x1080 NV21。
+     */
     ret = AW_MPI_SYS_Bind(&vi_mpp_channel, &venc_mpp_channel);
     if (ret != SUCCESS) {
         aloge("[VENC] Bind VI to VENC failed: ret=%d", ret);
@@ -375,6 +407,7 @@ int video_encoder_start(VideoEncoderContext *encoder)
     }
     encoder->channels_bound = 1;
 
+    /* 先 Bind，再让 VENC 进入接收状态，避免在 Executing 状态临时建立隧道。 */
     ret = AW_MPI_VENC_StartRecvPic(encoder->config.channel);
     if (ret != SUCCESS) {
         aloge("[VENC] StartRecvPic failed: ret=%d", ret);
@@ -416,6 +449,7 @@ int video_encoder_start(VideoEncoderContext *encoder)
     return 0;
 
 error:
+    /* stop 依据资源标志回滚已经完成的每一步。 */
     video_encoder_stop(encoder);
     return -1;
 }
@@ -432,6 +466,10 @@ int video_encoder_stop(VideoEncoderContext *encoder)
         return -1;
     }
 
+    /*
+     * 先禁用 VI 虚拟通道阻止新帧进入 VENC，再 join 取流线程；
+     * 线程结束后才能 StopRecvPic、UnBind 和销毁通道。
+     */
     encoder->stop_requested = 1;
     if (encoder->vi_channel_enabled) {
         ret = AW_MPI_VI_DisableVirChn(encoder->config.vi_device,
@@ -550,6 +588,7 @@ void video_encoder_destroy(VideoEncoderContext *encoder)
         return;
     }
 
+    /* 如调用者忘记 stop，destroy 会先执行一次安全停止。 */
     if (encoder->thread_started || encoder->receiving ||
         encoder->channel_created || encoder->output_file != NULL ||
         encoder->h264_header != NULL ||

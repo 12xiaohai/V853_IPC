@@ -17,6 +17,7 @@
 #define VIDEO_DISPLAY_LAYER 0
 #define VIDEO_DISPLAY_CHANNEL 0
 
+/* 一个池节点：frame 描述 MMZ 内存，in_use 表示 VO 是否仍持有它。 */
 typedef struct VideoDisplayBuffer {
     VIDEO_FRAME_INFO_S frame;
     int in_use;
@@ -26,6 +27,7 @@ struct VideoDisplayContext {
     VideoDisplayConfig config;
     G2dContext g2d;
     VideoDisplayBuffer buffers[VIDEO_DISPLAY_BUFFER_COUNT];
+    /* 采集线程取缓冲、VO 回调释放缓冲，两者必须互斥。 */
     pthread_mutex_t buffer_lock;
     int mutex_initialized;
 
@@ -34,6 +36,7 @@ struct VideoDisplayContext {
     VO_LAYER layer;
     VO_CHN channel;
 
+    /* 资源状态标志用于失败回滚和幂等 stop。 */
     int g2d_opened;
     int buffers_allocated;
     int device_enabled;
@@ -47,6 +50,7 @@ struct VideoDisplayContext {
     unsigned long long dropped_frames;
 };
 
+/* 将一个 MMZ 帧放回帧池；可由 VO 回调或提交失败路径调用。 */
 static void video_display_release_buffer(VideoDisplayContext *display,
                                          unsigned int frame_id,
                                          int released_by_vo)
@@ -68,6 +72,7 @@ static void video_display_release_buffer(VideoDisplayContext *display,
     pthread_mutex_unlock(&display->buffer_lock);
 }
 
+/* MPP 在 VO 完成一帧显示后回调，将该帧的所有权还给应用。 */
 static ERRORTYPE video_display_callback(void *cookie,
                                         MPP_CHN_S *channel,
                                         MPP_EVENT_TYPE event,
@@ -98,6 +103,7 @@ static ERRORTYPE video_display_callback(void *cookie,
     return SUCCESS;
 }
 
+/* 只有确保 VO 不再访问帧池后，才能释放这些 MMZ 物理连续内存。 */
 static void video_display_free_buffers(VideoDisplayContext *display)
 {
     int i;
@@ -118,6 +124,10 @@ static void video_display_free_buffers(VideoDisplayContext *display)
     display->buffers_allocated = 0;
 }
 
+/*
+ * 为旋转后的 NV21 图像创建 5 个 MMZ 帧。NV21 大小为 width*height*3/2：
+ * Y 平面占 width*height，VU 平面占一半。
+ */
 static int video_display_allocate_buffers(VideoDisplayContext *display)
 {
     int output_width = display->g2d.destination_width;
@@ -139,6 +149,7 @@ static int video_display_allocate_buffers(VideoDisplayContext *display)
         buffer->frame.VFrame.mStride[0] = (unsigned int)output_width;
         buffer->frame.VFrame.mStride[1] = (unsigned int)output_width;
 
+        /* G2D/VO 需要物理地址，CPU 调试时则可使用对应虚拟地址。 */
         ret = AW_MPI_SYS_MmzAlloc_Cached(
             &buffer->frame.VFrame.mPhyAddr[0],
             &buffer->frame.VFrame.mpVirAddr[0],
@@ -166,6 +177,7 @@ static int video_display_allocate_buffers(VideoDisplayContext *display)
     return 0;
 }
 
+/* 从帧池中非阻塞地取一个空闲帧；全忙时返回 NULL 并丢弃当前预览帧。 */
 static VideoDisplayBuffer *video_display_acquire_buffer(
     VideoDisplayContext *display)
 {
@@ -194,6 +206,7 @@ VideoDisplayContext *video_display_create(const VideoDisplayConfig *config)
         return NULL;
     }
 
+    /* create 不访问硬件，只分配上下文和初始化锁。 */
     display = calloc(1, sizeof(*display));
     if (display == NULL) {
         return NULL;
@@ -225,6 +238,7 @@ int video_display_start(VideoDisplayContext *display)
         return -1;
     }
 
+    /* 先准备转换器和输出帧，再启动 VO，确保通道启动后立即可送帧。 */
     if (g2d_open(&display->g2d,
                  display->config.source_width,
                  display->config.source_height,
@@ -244,6 +258,7 @@ int video_display_start(VideoDisplayContext *display)
     }
     display->device_enabled = 1;
 
+    /* 关闭默认 UI layer，避免它覆盖摄像头视频 layer。 */
     ret = AW_MPI_VO_AddOutsideVideoLayer(display->ui_layer);
     if (ret != SUCCESS) {
         aloge("[VO] Add UI layer failed: ret=%d", ret);
@@ -263,6 +278,7 @@ int video_display_start(VideoDisplayContext *display)
         aloge("[VO] Get public attributes failed: ret=%d", ret);
         goto error;
     }
+    /* 输出设备是板载 LCD；实际时序由底层 LCD panel 配置决定。 */
     public_attributes.enIntfType = VO_INTF_LCD;
     public_attributes.enIntfSync = VO_OUTPUT_NTSC;
     ret = AW_MPI_VO_SetPubAttr(display->device, &public_attributes);
@@ -312,6 +328,7 @@ int video_display_start(VideoDisplayContext *display)
         goto error;
     }
 
+    /* VO 内部使用双缓冲，应用侧仍保留 5 帧 MMZ 池吸收并发抖动。 */
     ret = AW_MPI_VO_SetChnDispBufNum(display->layer, display->channel, 2);
     if (ret != SUCCESS) {
         aloge("[VO] Set display buffer count failed: ret=%d", ret);
@@ -333,6 +350,7 @@ int video_display_start(VideoDisplayContext *display)
     return 0;
 
 error:
+    /* stop 会根据状态标志只释放已成功创建的部分。 */
     video_display_stop(display);
     return -1;
 }
@@ -347,6 +365,7 @@ int video_display_submit(VideoDisplayContext *display,
         return -1;
     }
 
+    /* 帧池全忙时不阻塞 VI，而是丢当前预览帧保证实时性。 */
     buffer = video_display_acquire_buffer(display);
     if (buffer == NULL) {
         ++display->dropped_frames;
@@ -363,6 +382,10 @@ int video_display_submit(VideoDisplayContext *display,
         return -1;
     }
 
+    /*
+     * SendFrame 成功只表示 VO 接管了帧，不表示显示已完成。
+     * 在 RELEASE_VIDEO_BUFFER 回调到来前，in_use 必须保持为 1。
+     */
     ret = AW_MPI_VO_SendFrame(display->layer,
                               display->channel,
                               &buffer->frame,
@@ -392,6 +415,10 @@ int video_display_stop(VideoDisplayContext *display)
         return -1;
     }
 
+    /*
+     * 先停止/销毁 VO 通道，让 VO 放弃对输出帧的引用；然后关 layer
+     * 和 device，最后才释放 MMZ 帧池。提前释放 MMZ 可能造成花屏或崩溃。
+     */
     if (display->channel_started) {
         ret = AW_MPI_VO_StopChn(display->layer, display->channel);
         if (ret != SUCCESS) {
@@ -459,6 +486,7 @@ void video_display_destroy(VideoDisplayContext *display)
         return;
     }
 
+    /* destroy 可以直接用在未 start、完整 start 或部分 start 的对象上。 */
     if (display->channel_started || display->channel_created ||
         display->video_layer_enabled || display->ui_layer_added ||
         display->device_enabled || display->buffers_allocated ||

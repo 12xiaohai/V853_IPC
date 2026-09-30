@@ -17,9 +17,11 @@
 #define RTSP_SERVER_COUNT 4
 #define RTSP_SERVER_PORT 8554
 
+/* SDK TinyServer 最多管理 4 个会话；id 同时作为数组下标和 URL 中的 chN。 */
 static TinyServer *g_servers[RTSP_SERVER_COUNT];
 static MediaStream *g_streams[RTSP_SERVER_COUNT];
 
+/* 将跨 C/C++ 边界传入的枚举转成 Linux 网卡名。 */
 static const char *net_type_to_name(RtspNetType type)
 {
     switch (type) {
@@ -36,6 +38,10 @@ static const char *net_type_to_name(RtspNetType type)
     }
 }
 
+/*
+ * 创建一个临时 IPv4 socket，通过 SIOCGIFADDR ioctl 查询网卡 IP。
+ * 如果 Wi-Fi 未连接或尚未获得 DHCP 地址，此函数会失败，RTSP 无法启动。
+ */
 static int get_interface_ip(const char *interface_name,
                             char *ip,
                             size_t ip_capacity)
@@ -65,6 +71,7 @@ static int get_interface_ip(const char *interface_name,
     return 0;
 }
 
+/* 所有公开接口都先校验 id，避免越界访问全局数组。 */
 static int valid_id(int id)
 {
     return id >= 0 && id < RTSP_SERVER_COUNT;
@@ -82,6 +89,7 @@ int rtsp_server_open(int id, const RtspServerConfig *config)
         return -1;
     }
 
+    /* TinyServer 绑定具体 IP，因此启动前网卡必须已经有 IPv4 地址。 */
     interface_name = net_type_to_name(config->net_type);
     if (interface_name == NULL ||
         get_interface_ip(interface_name, ip, sizeof(ip)) != 0) {
@@ -91,6 +99,7 @@ int rtsp_server_open(int id, const RtspServerConfig *config)
         return -1;
     }
 
+    /* 所有会话共用固定端口 8554，用 ch0/ch1... 区分媒体路径。 */
     g_servers[id] = TinyServer::createServer(std::string(ip), RTSP_SERVER_PORT);
     if (g_servers[id] == NULL) {
         printf("[RTSP] Create server failed on %s:%d\n", ip, RTSP_SERVER_PORT);
@@ -98,6 +107,7 @@ int rtsp_server_open(int id, const RtspServerConfig *config)
     }
 
     attributes.videoType = MediaStream::MediaStreamAttr::VIDEO_TYPE_H264;
+    /* 阶段 5 只发 H.264；该 SDK 的属性仍需要一个音频类型，音频数据留空即可。 */
     attributes.audioType = MediaStream::MediaStreamAttr::AUDIO_TYPE_AAC;
     attributes.streamType = MediaStream::MediaStreamAttr::STREAM_TYPE_UNICAST;
     snprintf(stream_name, sizeof(stream_name), "ch%d", id);
@@ -120,6 +130,7 @@ int rtsp_server_start(int id)
     if (!valid_id(id) || g_servers[id] == NULL || g_streams[id] == NULL) {
         return -1;
     }
+    /* SDK 内部创建 RTSP 事件循环线程，接收 VLC/ffplay 客户端连接。 */
     return g_servers[id]->runWithNewThread();
 }
 
@@ -135,6 +146,7 @@ int rtsp_server_send_video(int id,
         return -1;
     }
 
+    /* 将项目自定义帧类型转成 TinyServer 需要的 C++ 枚举。 */
     media_frame_type = frame_type == RTSP_FRAME_TYPE_I
                            ? MediaStream::FRAME_DATA_TYPE_I
                            : MediaStream::FRAME_DATA_TYPE_P;
@@ -154,6 +166,7 @@ void rtsp_server_close(int id)
     if (!valid_id(id)) {
         return;
     }
+    /* MediaStream 依赖 TinyServer，所以必须先 delete stream，再 delete server。 */
     delete g_streams[id];
     g_streams[id] = NULL;
     delete g_servers[id];

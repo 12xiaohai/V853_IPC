@@ -12,7 +12,9 @@ int platform_init(void)
     MPP_SYS_CONF_S sys_conf;
     uint64_t current_pts = 0;
 
+    /* MPP 系统必须早于 VI/VO/VENC 等任何子模块初始化。 */
     memset(&sys_conf, 0, sizeof(sys_conf));
+    /* 媒体缓冲行按 32 字节对齐，满足硬件 DMA 的访存要求。 */
     sys_conf.nAlignWidth = 32;
 
     result = AW_MPI_SYS_SetConf(&sys_conf);
@@ -27,6 +29,10 @@ int platform_init(void)
         return -1;
     }
 
+    /*
+     * PTS（Presentation Timestamp）是媒体帧的时间轴。用当前 MPP 时间
+     * 初始化全局 PTS 基准，后续音视频才能使用同一时钟同步。
+     */
     result = AW_MPI_SYS_GetCurPts(&current_pts);
     if (result != SUCCESS) {
         aloge("AW_MPI_SYS_GetCurPts failed: %#x", result);
@@ -48,6 +54,7 @@ int platform_init(void)
 
 int platform_deinit(void)
 {
+    /* 调用前应确保 VI/VO/VENC/RTSP 已全部停止。 */
     ERRORTYPE result = AW_MPI_SYS_Exit();
 
     if (result != SUCCESS) {

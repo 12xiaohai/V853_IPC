@@ -7,20 +7,20 @@
 #include <utils/plat_log.h>
 
 typedef struct RtspVideoFrame {
-    unsigned char *data;
-    unsigned int size;
-    uint64_t pts;
-    int key_frame;
+    unsigned char *data; /* 应用自己拥有的 H.264 完整帧副本。 */
+    unsigned int size;   /* data 的有效字节数。 */
+    uint64_t pts;        /* 帧的显示时间戳，单位微秒。 */
+    int key_frame;       /* 1=IDR/I 帧，0=P 帧。 */
 } RtspVideoFrame;
 
 struct RtspStreamContext {
     RtspStreamConfig config;
-    RtspVideoFrame *queue;
-    unsigned int head;
-    unsigned int tail;
-    unsigned int count;
+    RtspVideoFrame *queue;       /* 固定容量的环形队列数组。 */
+    unsigned int head;           /* 消费者下一次取帧位置。 */
+    unsigned int tail;           /* 生产者下一次写帧位置。 */
+    unsigned int count;          /* 当前已入队但未发送的帧数。 */
     pthread_mutex_t mutex;
-    pthread_cond_t frame_available;
+    pthread_cond_t frame_available; /* 队列从空变为非空时唤醒发送线程。 */
     pthread_t thread;
     int mutex_initialized;
     int condition_initialized;
@@ -33,12 +33,17 @@ struct RtspStreamContext {
     unsigned long long frames_dropped;
 };
 
+/* 释放帧数据并把描述符清零，避免重复 free。 */
 static void release_frame(RtspVideoFrame *frame)
 {
     free(frame->data);
     memset(frame, 0, sizeof(*frame));
 }
 
+/*
+ * 消费者线程：队列空时睡眠，有帧时取出一帧发给 TinyServer。
+ * 网络发送与 VENC 取流分开，防止网络抖动卡住编码器。
+ */
 static void *rtsp_sender_thread(void *argument)
 {
     RtspStreamContext *context = argument;
@@ -49,6 +54,7 @@ static void *rtsp_sender_thread(void *argument)
 
         memset(&frame, 0, sizeof(frame));
         pthread_mutex_lock(&context->mutex);
+        /* pthread_cond_wait 会在等待时自动释放 mutex，被唤醒后再重新加锁。 */
         while (context->count == 0U && !context->stop_requested) {
             pthread_cond_wait(&context->frame_available, &context->mutex);
         }
@@ -57,6 +63,7 @@ static void *rtsp_sender_thread(void *argument)
             break;
         }
 
+        /* 只在锁内移动队列指针，真正的 RTSP 发送在解锁后进行。 */
         frame = context->queue[context->head];
         memset(&context->queue[context->head], 0,
                sizeof(context->queue[context->head]));
@@ -91,6 +98,7 @@ RtspStreamContext *rtsp_stream_create(const RtspStreamConfig *config)
         return NULL;
     }
 
+    /* 队列容量在创建时固定，运行中不扩容，从而限制最大内存占用。 */
     context = calloc(1, sizeof(*context));
     if (context == NULL) {
         return NULL;
@@ -128,6 +136,7 @@ int rtsp_stream_start(RtspStreamContext *context)
     server_config.net_type = context->config.net_type;
     server_config.frame_rate = context->config.frame_rate;
 
+    /* 先创建 TinyServer 和媒体流，再启动底层 RTSP 事件线程。 */
     if (rtsp_server_open(context->config.session_id, &server_config) != 0) {
         aloge("[RTSP] Open server failed");
         return -1;
@@ -177,6 +186,7 @@ int rtsp_stream_push_h264(RtspStreamContext *context,
         (key_frame && header_size > 0U && header == NULL)) {
         return -1;
     }
+    /* 关键帧前附加 SPS/PPS，新连入客户端才能获得解码参数。 */
     if (key_frame) {
         total_size += header_size;
     }
@@ -185,6 +195,10 @@ int rtsp_stream_push_h264(RtspStreamContext *context,
     }
 
     memset(&frame, 0, sizeof(frame));
+    /*
+     * VENC 缓冲将在回调返回后被 ReleaseStream，所以必须现在深拷贝。
+     * 这里只分配一次，再把 SPS/PPS 和三段 pack 连续拼入同一缓冲。
+     */
     frame.data = malloc(total_size);
     if (frame.data == NULL) {
         ++context->frames_dropped;
@@ -210,12 +224,14 @@ int rtsp_stream_push_h264(RtspStreamContext *context,
     frame.pts = pts;
     frame.key_frame = key_frame;
 
+    /* 从此处开始操作共享队列，必须持有 mutex。 */
     pthread_mutex_lock(&context->mutex);
     if (context->stop_requested) {
         pthread_mutex_unlock(&context->mutex);
         release_frame(&frame);
         return -1;
     }
+    /* 队列满时丢最旧帧，不阻塞 VENC，直播优先保持低延迟。 */
     if (context->count == context->config.queue_capacity) {
         release_frame(&context->queue[context->head]);
         context->head = (context->head + 1U) % context->config.queue_capacity;
@@ -238,6 +254,10 @@ int rtsp_stream_stop(RtspStreamContext *context)
     if (context == NULL) {
         return -1;
     }
+    /*
+     * 先设置退出标志并唤醒可能在等待的消费者。发送线程会把已入队
+     * 的剩余帧处理完再退出，然后才停止和销毁 TinyServer。
+     */
     if (context->thread_started) {
         pthread_mutex_lock(&context->mutex);
         context->stop_requested = 1;
@@ -255,6 +275,7 @@ int rtsp_stream_stop(RtspStreamContext *context)
         context->server_opened = 0;
     }
 
+    /* 清理异常启动失败时可能残留在队列中的帧。 */
     if (context->mutex_initialized) {
         pthread_mutex_lock(&context->mutex);
         for (index = 0; index < context->config.queue_capacity; ++index) {
@@ -273,6 +294,7 @@ void rtsp_stream_destroy(RtspStreamContext *context)
     if (context == NULL) {
         return;
     }
+    /* stop 是幂等的：已停止的对象再调用一次也安全。 */
     rtsp_stream_stop(context);
     if (context->condition_initialized) {
         pthread_cond_destroy(&context->frame_available);

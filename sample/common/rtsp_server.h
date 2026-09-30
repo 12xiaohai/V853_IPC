@@ -4,14 +4,15 @@
 #include <stdint.h>
 
 #ifdef __cplusplus
+/* 让 C 模块可以调用由 C++ 实现的 TinyServer 封装。 */
 extern "C" {
 #endif
 
 typedef enum RtspNetType {
-    RTSP_NET_TYPE_LO = 0,
-    RTSP_NET_TYPE_ETH0,
-    RTSP_NET_TYPE_BR0,
-    RTSP_NET_TYPE_WLAN0
+    RTSP_NET_TYPE_LO = 0, /* 本机回环，只能在板端自测。 */
+    RTSP_NET_TYPE_ETH0,   /* 有线网卡。 */
+    RTSP_NET_TYPE_BR0,    /* Linux 网桥。 */
+    RTSP_NET_TYPE_WLAN0   /* Wi-Fi 网卡。 */
 } RtspNetType;
 
 typedef enum RtspFrameType {
@@ -24,6 +25,7 @@ typedef struct RtspServerConfig {
     int frame_rate;
 } RtspServerConfig;
 
+/* open 创建服务器和 chN 媒体流，start 启动 RTSP 事件线程。 */
 int rtsp_server_open(int id, const RtspServerConfig *config);
 int rtsp_server_start(int id);
 int rtsp_server_send_video(int id,
