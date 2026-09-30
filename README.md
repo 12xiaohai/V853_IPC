@@ -42,6 +42,9 @@ media-time order for synchronized network playback. Stage 7 follows the
 original project by using `librgb_ctrl` with the target's `asc64.lz4` font,
 attaching an RGB8888 overlay region to VENC channel 0, and refreshing the clock
 once per second. Both the local H.264 file and RTSP video contain the watermark.
+The Stage 7 implementation has been verified on the V853 board; after BusyBox
+NTP synchronization, the watermark shows the correct local date and updates
+once per second.
 Build in a Linux environment:
 
 ```sh
