@@ -7,6 +7,8 @@
 #include <media/mpi_videoformat_conversion.h>
 #include <utils/plat_log.h>
 
+#include "video_display.h"
+
 static void *video_capture_thread(void *argument)
 {
     VideoCaptureContext *capture = argument;
@@ -48,6 +50,12 @@ static void *video_capture_thread(void *argument)
                   frame.VFrame.mWidth,
                   frame.VFrame.mHeight,
                   (unsigned long long)frame.VFrame.mpts);
+        }
+
+        if (capture->display != NULL &&
+            video_display_submit(capture->display, &frame) < 0) {
+            alogw("[VI] Display processing failed for frame=%llu",
+                  (unsigned long long)capture->frame_count);
         }
 
         ret = AW_MPI_VI_ReleaseFrame(capture->device,

@@ -6,6 +6,8 @@
 
 #include <media/mm_comm_vi.h>
 
+struct VideoDisplayContext;
+
 typedef struct VideoCaptureContext {
     VI_DEV device;
     ISP_DEV isp_device;
@@ -15,6 +17,7 @@ typedef struct VideoCaptureContext {
     int frame_rate;
     int timeout_ms;
     PIXEL_FORMAT_E pixel_format;
+    struct VideoDisplayContext *display;
 
     pthread_t thread_id;
     volatile int stop_requested;

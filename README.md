@@ -23,6 +23,9 @@ Stage 1 initializes the MPP system, establishes the global PTS base, handles
 `SIGINT`/`SIGTERM`, and shuts the platform down cleanly. Stage 2 creates the
 MIPI CSI/VI capture path, continuously obtains and releases video frames in a
 worker thread, and destroys the VI/ISP resources in reverse order on exit.
+Stage 3 rotates each captured frame by 270 degrees with G2D and submits the
+result to VO for a 480x800 LCD preview. VO release callbacks return the MMZ
+output buffers to a five-frame pool.
 
 Build in a Linux environment:
 

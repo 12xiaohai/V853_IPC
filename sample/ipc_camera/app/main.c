@@ -12,6 +12,7 @@
 #include "log.h"
 #include "platform.h"
 #include "video_capture.h"
+#include "video_display.h"
 
 #include <utils/plat_log.h>
 
@@ -62,6 +63,9 @@ int main(int argc, char *argv[])
     int log_initialized = 0;
     int platform_initialized = 0;
     int video_capture_started = 0;
+    int video_display_started = 0;
+    VideoDisplayContext *video_display = NULL;
+    VideoDisplayConfig display_config;
 
     (void)argc;
 
@@ -101,6 +105,29 @@ int main(int argc, char *argv[])
     }
     platform_initialized = 1;
 
+    memset(&display_config, 0, sizeof(display_config));
+    display_config.source_width = g_pContext->video_capture.width;
+    display_config.source_height = g_pContext->video_capture.height;
+    display_config.pixel_format = g_pContext->video_capture.pixel_format;
+    display_config.rotation = 270;
+    display_config.display_x = 0;
+    display_config.display_y = 0;
+    display_config.display_width = 480;
+    display_config.display_height = 800;
+
+    video_display = video_display_create(&display_config);
+    if (video_display == NULL) {
+        aloge("[Main] Video display context allocation failed");
+        goto cleanup;
+    }
+
+    if (video_display_start(video_display) != 0) {
+        aloge("[Main] Video display initialization failed");
+        goto cleanup;
+    }
+    video_display_started = 1;
+    g_pContext->video_capture.display = video_display;
+
     if (video_capture_start(&g_pContext->video_capture) != 0) {
         aloge("[Main] Video capture initialization failed");
         goto cleanup;
@@ -120,6 +147,16 @@ cleanup:
         video_capture_stop(&g_pContext->video_capture) != 0) {
         ret = EXIT_FAILURE;
     }
+
+    if (g_pContext != NULL) {
+        g_pContext->video_capture.display = NULL;
+    }
+
+    if (video_display_started && video_display_stop(video_display) != 0) {
+        ret = EXIT_FAILURE;
+    }
+    video_display_destroy(video_display);
+    video_display = NULL;
 
     if (platform_initialized && platform_deinit() != 0) {
         ret = EXIT_FAILURE;
