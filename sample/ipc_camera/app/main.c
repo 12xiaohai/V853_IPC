@@ -11,6 +11,7 @@
 #include "context.h"
 #include "log.h"
 #include "platform.h"
+#include "rtsp_stream.h"
 #include "video_capture.h"
 #include "video_display.h"
 #include "video_encoder.h"
@@ -20,6 +21,32 @@
 static pthread_mutex_t g_mutex_mpp;
 static IpCameraContext *g_pContext;
 static volatile sig_atomic_t g_exit_signal;
+
+static int push_encoded_frame_to_rtsp(
+    void *opaque,
+    const unsigned char *header,
+    size_t header_size,
+    const unsigned char *data0,
+    size_t size0,
+    const unsigned char *data1,
+    size_t size1,
+    const unsigned char *data2,
+    size_t size2,
+    unsigned long long pts,
+    int key_frame)
+{
+    return rtsp_stream_push_h264((RtspStreamContext *)opaque,
+                                 header,
+                                 header_size,
+                                 data0,
+                                 size0,
+                                 data1,
+                                 size1,
+                                 data2,
+                                 size2,
+                                 pts,
+                                 key_frame);
+}
 
 static void handle_exit_signal(int signal_number)
 {
@@ -70,6 +97,9 @@ int main(int argc, char *argv[])
     int video_encoder_started = 0;
     VideoEncoderContext *video_encoder = NULL;
     VideoEncoderConfig encoder_config;
+    int rtsp_stream_started = 0;
+    RtspStreamContext *rtsp_stream = NULL;
+    RtspStreamConfig rtsp_config;
 
     (void)argc;
 
@@ -138,6 +168,22 @@ int main(int argc, char *argv[])
     }
     video_capture_started = 1;
 
+    memset(&rtsp_config, 0, sizeof(rtsp_config));
+    rtsp_config.session_id = 0;
+    rtsp_config.net_type = RTSP_NET_TYPE_WLAN0;
+    rtsp_config.frame_rate = g_pContext->video_capture.frame_rate;
+    rtsp_config.queue_capacity = 16;
+    rtsp_stream = rtsp_stream_create(&rtsp_config);
+    if (rtsp_stream == NULL) {
+        aloge("[Main] RTSP context allocation failed");
+        goto cleanup;
+    }
+    if (rtsp_stream_start(rtsp_stream) != 0) {
+        aloge("[Main] RTSP video service initialization failed");
+        goto cleanup;
+    }
+    rtsp_stream_started = 1;
+
     memset(&encoder_config, 0, sizeof(encoder_config));
     encoder_config.channel = 0;
     encoder_config.vi_device = 0;
@@ -150,6 +196,8 @@ int main(int argc, char *argv[])
     encoder_config.gop_size = 75;
     encoder_config.pixel_format = g_pContext->video_capture.pixel_format;
     encoder_config.output_path = "/mnt/UDISK/sample_demo.h264";
+    encoder_config.frame_callback = push_encoded_frame_to_rtsp;
+    encoder_config.frame_callback_opaque = rtsp_stream;
 
     video_encoder = video_encoder_create(&encoder_config);
     if (video_encoder == NULL) {
@@ -177,6 +225,12 @@ cleanup:
     }
     video_encoder_destroy(video_encoder);
     video_encoder = NULL;
+
+    if (rtsp_stream_started && rtsp_stream_stop(rtsp_stream) != 0) {
+        ret = EXIT_FAILURE;
+    }
+    rtsp_stream_destroy(rtsp_stream);
+    rtsp_stream = NULL;
 
     if (video_capture_started &&
         video_capture_stop(&g_pContext->video_capture) != 0) {

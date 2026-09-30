@@ -199,6 +199,7 @@ USER_INC_BASE_DIR  += $(ROOT_DIR)/sdk/aw_pack_src/lib_aw/include/libawaiisp
 #USER_INC_BASE_DIR  += $(ROOT_DIR)/sdk/aw_pack_src/lib_aw/include/libawaiisp/viplite-driver
 USER_INC_BASE_DIR  += $(ROOT_DIR)/sdk/aw_pack_src/lib_aw/include/eyesee-mpp/system/public/libion/include
 USER_INC_BASE_DIR  += $(ROOT_DIR)/sdk/aw_pack_src/lib_aw/include/eyesee-mpp/system/public/rgb_ctrl/
+USER_INC_BASE_DIR  += $(ROOT_DIR)/sdk/aw_pack_src/lib_aw/include/eyesee-mpp/system/private/rtsp/IPCProgram/interface
 
 #user app 编译文件
 USER_SRC_DIRS = $(shell find $(USER_SRC_BASE_DIR) -type d)

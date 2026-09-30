@@ -16,6 +16,8 @@ struct VideoEncoderContext {
     VideoEncoderConfig config;
     char output_path[256];
     FILE *output_file;
+    unsigned char *h264_header;
+    size_t h264_header_size;
     pthread_t stream_thread;
     volatile int stop_requested;
 
@@ -111,6 +113,24 @@ static void *video_encoder_stream_thread(void *argument)
                       is_key_frame,
                       (unsigned long long)pack.mPTS);
                 fflush(encoder->output_file);
+            }
+
+            if (encoder->config.frame_callback != NULL &&
+                encoder->config.frame_callback(
+                    encoder->config.frame_callback_opaque,
+                    encoder->h264_header,
+                    encoder->h264_header_size,
+                    pack.mpAddr0,
+                    pack.mLen0,
+                    pack.mpAddr1,
+                    pack.mLen1,
+                    pack.mpAddr2,
+                    pack.mLen2,
+                    (unsigned long long)pack.mPTS,
+                    is_key_frame) != 0) {
+                alogw("[VENC] RTSP queue rejected frame: seq=%u, key=%d",
+                      stream.mSeq,
+                      is_key_frame);
             }
         }
 
@@ -334,6 +354,13 @@ int video_encoder_start(VideoEncoderContext *encoder)
         aloge("[VENC] Write SPS/PPS failed");
         goto error;
     }
+    encoder->h264_header = malloc(header.nLength);
+    if (encoder->h264_header == NULL) {
+        aloge("[VENC] Allocate SPS/PPS copy failed");
+        goto error;
+    }
+    memcpy(encoder->h264_header, header.pBuffer, header.nLength);
+    encoder->h264_header_size = header.nLength;
 
     vi_mpp_channel.mModId = MOD_ID_VIU;
     vi_mpp_channel.mDevId = encoder->config.vi_device;
@@ -505,6 +532,9 @@ int video_encoder_stop(VideoEncoderContext *encoder)
         fclose(encoder->output_file);
         encoder->output_file = NULL;
     }
+    free(encoder->h264_header);
+    encoder->h264_header = NULL;
+    encoder->h264_header_size = 0U;
 
     alogd("[VENC] Encoder stopped: encoded=%llu, "
           "key=%llu, bytes=%llu",
@@ -522,6 +552,7 @@ void video_encoder_destroy(VideoEncoderContext *encoder)
 
     if (encoder->thread_started || encoder->receiving ||
         encoder->channel_created || encoder->output_file != NULL ||
+        encoder->h264_header != NULL ||
         encoder->vipp_created || encoder->isp_running ||
         encoder->vipp_enabled || encoder->vi_channel_created ||
         encoder->vi_channel_enabled || encoder->channels_bound) {

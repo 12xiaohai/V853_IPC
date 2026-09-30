@@ -28,7 +28,10 @@ result to VO for a 480x800 LCD preview. VO release callbacks return the MMZ
 output buffers to a five-frame pool. Stage 4 adds the original main-stream
 topology: VIPP 0 is bound inside MPP to VENC channel 0 for 1920x1080 H.264
 encoding, while an application thread extracts the encoded stream to
-`/mnt/UDISK/sample_demo.h264`.
+`/mnt/UDISK/sample_demo.h264`. Stage 5 adds a bounded H.264 frame queue and a
+dedicated RTSP sender thread. The SDK TinyServer publishes the main stream at
+`rtsp://<wlan0-ip>:8554/ch0`; SPS/PPS data is prepended to every IDR frame so a
+client can join the stream at a key-frame boundary.
 
 Build in a Linux environment:
 
