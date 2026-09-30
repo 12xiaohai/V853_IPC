@@ -31,7 +31,10 @@ encoding, while an application thread extracts the encoded stream to
 `/mnt/UDISK/sample_demo.h264`. Stage 5 adds a bounded H.264 frame queue and a
 dedicated RTSP sender thread. The SDK TinyServer publishes the main stream at
 `rtsp://<wlan0-ip>:8554/ch0`; SPS/PPS data is prepended to every IDR frame so a
-client can join the stream at a key-frame boundary.
+client can join the stream at a key-frame boundary. Stage 6.1 begins the audio
+path with AI device 0 capturing 16 kHz, 16-bit mono PCM to
+`/mnt/UDISK/sample_demo.pcm`; AAC encoding and RTSP A/V synchronization are
+added only after this raw capture has been verified.
 
 Build in a Linux environment:
 

@@ -7,6 +7,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "audio_capture.h"
 #include "config.h"
 #include "context.h"
 #include "log.h"
@@ -114,6 +115,9 @@ int main(int argc, char *argv[])
     int rtsp_stream_started = 0;
     RtspStreamContext *rtsp_stream = NULL;
     RtspStreamConfig rtsp_config;
+    int audio_capture_started = 0;
+    AudioCaptureContext *audio_capture = NULL;
+    AudioCaptureConfig audio_config;
 
     (void)argc;
 
@@ -241,6 +245,32 @@ int main(int argc, char *argv[])
     }
     video_encoder_started = 1;
 
+    /*
+     * 阶段 6.1 只采集原始 PCM 到文件，暂不启动 AAC 编码。
+     * 16000 Hz * 16 bit * 1 声道 = 256 kbit/s，即每秒约 32 KB PCM。
+     */
+    memset(&audio_config, 0, sizeof(audio_config));
+    audio_config.device = 0;
+    audio_config.channel = 0;
+    audio_config.sample_rate = 16000;
+    audio_config.bit_width = 16;
+    audio_config.channels = 1;
+    audio_config.samples_per_frame = 1024;
+    audio_config.volume = 100;
+    audio_config.timeout_ms = 200;
+    audio_config.output_path = "/mnt/UDISK/sample_demo.pcm";
+
+    audio_capture = audio_capture_create(&audio_config);
+    if (audio_capture == NULL) {
+        aloge("[Main] Audio capture context allocation failed");
+        goto cleanup;
+    }
+    if (audio_capture_start(audio_capture) != 0) {
+        aloge("[Main] PCM audio capture initialization failed");
+        goto cleanup;
+    }
+    audio_capture_started = 1;
+
     /* 主线程不做媒体处理，只等待信号；实际工作由各子线程完成。 */
     alogd("[Main] Application is running; press Ctrl+C to exit");
     while (g_exit_signal == 0) {
@@ -253,11 +283,18 @@ int main(int argc, char *argv[])
 cleanup:
     /*
      * 统一失败回滚和正常退出入口。按启动顺序的反向销毁：
-     * VENC -> RTSP -> VI -> VO/G2D -> MPP -> 上下文 -> 日志。
+     * AI -> VENC -> RTSP -> VI -> VO/G2D -> MPP -> 上下文 -> 日志。
      * 先停 VENC 再停 RTSP，可保证销毁 RTSP 后不会再有新编码帧入队。
      */
 
-     if (video_encoder_started && video_encoder_stop(video_encoder) != 0) {
+    /* 音频最后启动，因此在逆序清理时最先停止。 */
+    if (audio_capture_started && audio_capture_stop(audio_capture) != 0) {
+        ret = EXIT_FAILURE;
+    }
+    audio_capture_destroy(audio_capture);
+    audio_capture = NULL;
+
+    if (video_encoder_started && video_encoder_stop(video_encoder) != 0) {
         ret = EXIT_FAILURE;
     }
     video_encoder_destroy(video_encoder);
