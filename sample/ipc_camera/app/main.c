@@ -13,6 +13,7 @@
 #include "platform.h"
 #include "video_capture.h"
 #include "video_display.h"
+#include "video_encoder.h"
 
 #include <utils/plat_log.h>
 
@@ -66,6 +67,9 @@ int main(int argc, char *argv[])
     int video_display_started = 0;
     VideoDisplayContext *video_display = NULL;
     VideoDisplayConfig display_config;
+    int video_encoder_started = 0;
+    VideoEncoderContext *video_encoder = NULL;
+    VideoEncoderConfig encoder_config;
 
     (void)argc;
 
@@ -134,6 +138,31 @@ int main(int argc, char *argv[])
     }
     video_capture_started = 1;
 
+    memset(&encoder_config, 0, sizeof(encoder_config));
+    encoder_config.channel = 0;
+    encoder_config.vi_device = 0;
+    encoder_config.isp_device = 0;
+    encoder_config.vi_channel = 0;
+    encoder_config.width = g_pContext->video_capture.width;
+    encoder_config.height = g_pContext->video_capture.height;
+    encoder_config.frame_rate = g_pContext->video_capture.frame_rate;
+    encoder_config.bit_rate = 5242880;
+    encoder_config.gop_size = 75;
+    encoder_config.pixel_format = g_pContext->video_capture.pixel_format;
+    encoder_config.output_path = "/mnt/UDISK/sample_demo.h264";
+
+    video_encoder = video_encoder_create(&encoder_config);
+    if (video_encoder == NULL) {
+        aloge("[Main] Video encoder context allocation failed");
+        goto cleanup;
+    }
+
+    if (video_encoder_start(video_encoder) != 0) {
+        aloge("[Main] Video encoder initialization failed");
+        goto cleanup;
+    }
+    video_encoder_started = 1;
+
     alogd("[Main] Application is running; press Ctrl+C to exit");
     while (g_exit_signal == 0) {
         sleep(1);
@@ -143,6 +172,12 @@ int main(int argc, char *argv[])
     ret = EXIT_SUCCESS;
 
 cleanup:
+    if (video_encoder_started && video_encoder_stop(video_encoder) != 0) {
+        ret = EXIT_FAILURE;
+    }
+    video_encoder_destroy(video_encoder);
+    video_encoder = NULL;
+
     if (video_capture_started &&
         video_capture_stop(&g_pContext->video_capture) != 0) {
         ret = EXIT_FAILURE;

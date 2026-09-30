@@ -25,7 +25,10 @@ MIPI CSI/VI capture path, continuously obtains and releases video frames in a
 worker thread, and destroys the VI/ISP resources in reverse order on exit.
 Stage 3 rotates each captured frame by 270 degrees with G2D and submits the
 result to VO for a 480x800 LCD preview. VO release callbacks return the MMZ
-output buffers to a five-frame pool.
+output buffers to a five-frame pool. Stage 4 adds the original main-stream
+topology: VIPP 0 is bound inside MPP to VENC channel 0 for 1920x1080 H.264
+encoding, while an application thread extracts the encoded stream to
+`/mnt/UDISK/sample_demo.h264`.
 
 Build in a Linux environment:
 
