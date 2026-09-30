@@ -323,13 +323,6 @@ int video_encoder_start(VideoEncoderContext *encoder)
         goto error;
     }
 
-    ret = AW_MPI_VENC_StartRecvPic(encoder->config.channel);
-    if (ret != SUCCESS) {
-        aloge("[VENC] StartRecvPic failed: ret=%d", ret);
-        goto error;
-    }
-    encoder->receiving = 1;
-
     memset(&header, 0, sizeof(header));
     ret = AW_MPI_VENC_GetH264SpsPpsInfo(encoder->config.channel, &header);
     if (ret != SUCCESS || header.pBuffer == NULL || header.nLength == 0U) {
@@ -354,6 +347,13 @@ int video_encoder_start(VideoEncoderContext *encoder)
         goto error;
     }
     encoder->channels_bound = 1;
+
+    ret = AW_MPI_VENC_StartRecvPic(encoder->config.channel);
+    if (ret != SUCCESS) {
+        aloge("[VENC] StartRecvPic failed: ret=%d", ret);
+        goto error;
+    }
+    encoder->receiving = 1;
 
     ret = AW_MPI_VI_EnableVirChn(encoder->config.vi_device,
                                  encoder->config.vi_channel);
