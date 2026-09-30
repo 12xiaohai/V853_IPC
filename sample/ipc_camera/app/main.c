@@ -13,6 +13,7 @@
 #include "log.h"
 #include "platform.h"
 #include "rtsp_stream.h"
+#include "time_osd.h"
 #include "video_capture.h"
 #include "video_display.h"
 #include "video_encoder.h"
@@ -121,6 +122,9 @@ int main(int argc, char *argv[])
     int video_encoder_started = 0;
     VideoEncoderContext *video_encoder = NULL;
     VideoEncoderConfig encoder_config;
+    int time_osd_started = 0;
+    TimeOsdContext *time_osd = NULL;
+    TimeOsdConfig time_osd_config;
     int rtsp_stream_started = 0;
     RtspStreamContext *rtsp_stream = NULL;
     RtspStreamConfig rtsp_config;
@@ -255,6 +259,27 @@ int main(int argc, char *argv[])
     video_encoder_started = 1;
 
     /*
+     * RGN附着在VENC通道0，所以本地H.264文件和RTSP视频都会包含时间。
+     * LCD预览来自另一条VI/G2D/VO通路，本阶段不会在LCD上重复叠加。
+     */
+    memset(&time_osd_config, 0, sizeof(time_osd_config));
+    time_osd_config.venc_channel = encoder_config.channel;
+    time_osd_config.handle = 0;
+    time_osd_config.x = 32;
+    time_osd_config.y = 32;
+    time_osd_config.update_seconds = 1;
+    time_osd = time_osd_create(&time_osd_config);
+    if (time_osd == NULL) {
+        aloge("[Main] Time OSD context allocation failed");
+        goto cleanup;
+    }
+    if (time_osd_start(time_osd) != 0) {
+        aloge("[Main] Time OSD initialization failed");
+        goto cleanup;
+    }
+    time_osd_started = 1;
+
+    /*
      * AI 与 AENC 由 MPP 绑定，应用取出带 ADTS 头的 AAC。阶段 6.3 在
      * 保留本地 AAC 文件的同时，通过回调把同一帧送入 RTSP 音频队列。
      */
@@ -299,7 +324,7 @@ int main(int argc, char *argv[])
 cleanup:
     /*
      * 统一失败回滚和正常退出入口。按启动顺序的反向销毁：
-     * AI -> VENC -> RTSP -> VI -> VO/G2D -> MPP -> 上下文 -> 日志。
+     * AI -> OSD -> VENC -> RTSP -> VI -> VO/G2D -> MPP -> 上下文 -> 日志。
      * 先停 VENC 再停 RTSP，可保证销毁 RTSP 后不会再有新编码帧入队。
      */
 
@@ -309,6 +334,13 @@ cleanup:
     }
     audio_encoder_destroy(audio_encoder);
     audio_encoder = NULL;
+
+    /* 必须先从VENC解绑并销毁RGN，之后才能销毁VENC通道本身。 */
+    if (time_osd_started && time_osd_stop(time_osd) != 0) {
+        ret = EXIT_FAILURE;
+    }
+    time_osd_destroy(time_osd);
+    time_osd = NULL;
 
     if (video_encoder_started && video_encoder_stop(video_encoder) != 0) {
         ret = EXIT_FAILURE;

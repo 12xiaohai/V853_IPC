@@ -13,7 +13,7 @@ kept under `sdk`, so the project does not depend on its parent directory.
 4. H.264 encoding with VENC.
 5. RTSP video streaming.
 6. Audio capture, AAC encoding, and A/V synchronization.
-7. OSD time watermark.
+7. OSD time watermark on the encoded video path.
 8. MP4 recording and cyclic file management.
 9. NPU detection, line crossing, region intrusion, and audio alarm.
 
@@ -38,8 +38,10 @@ to AENC channel 0 inside MPP and writes ADTS-framed AAC to
 standalone diagnostic example, but it is no longer started by `main.c`. Stage
 6.3 adds a separate bounded AAC queue to the RTSP service. H.264 and AAC frames
 retain their original MPP microsecond PTS and are submitted to TinyServer in
-media-time order for synchronized network playback.
-
+media-time order for synchronized network playback. Stage 7 follows the
+original project by using `librgb_ctrl` with the target's `asc64.lz4` font,
+attaching an RGB8888 overlay region to VENC channel 0, and refreshing the clock
+once per second. Both the local H.264 file and RTSP video contain the watermark.
 Build in a Linux environment:
 
 ```sh
