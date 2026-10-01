@@ -21,6 +21,13 @@ typedef struct NpuDetectorConfig {
     int frame_rate;
     int buffer_count;
     int timeout_ms;
+    /*
+     * NPU采集通路的硬件方向校正。VIPP 8实测输出的人物旋转了180度，
+     * 同时开启水平镜像和垂直翻转可等效旋转180度。这两个选项只配置
+     * NPU使用的VIPP，不改动预览和编码通路中的帧。
+     */
+    int mirror;
+    int flip;
     const char *model_path;
     /*
      * 可选的一次性调试抓帧路径。非NULL时保存第一张真正送入NPU的NV12帧；

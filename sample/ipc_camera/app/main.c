@@ -458,6 +458,12 @@ int main(int argc, char *argv[])
     npu_config.frame_rate = 10;
     npu_config.buffer_count = 3;
     npu_config.timeout_ms = 200;
+    /*
+     * VIPP 8抓帧证明图像为正确NV12，但物理安装方向导致人物倒置。
+     * 水平镜像+垂直翻转等效于旋转180度，让YOLOv8始终接收正立画面。
+     */
+    npu_config.mirror = 1;
+    npu_config.flip = 1;
     npu_config.model_path = "/lib/yolov8n.nb";
     /* 阶段9.2诊断期间保存一张NPU真实输入；确认检测正常后可改为NULL。 */
     npu_config.debug_dump_path = "/mnt/UDISK/npu_realtime_320x320.nv12";

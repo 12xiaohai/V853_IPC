@@ -518,6 +518,29 @@ int npu_detector_start(NpuDetectorContext *detector)
     }
     detector->vipp_enabled = 1;
 
+    /*
+     * V853 MPP要求mirror/flip在VIPP stream-on（EnableVipp）之后设置。
+     * 调试抓帧已经确认VIPP 8的NV12颜色正常，但人物整体倒置；
+     * mirror=1再加flip=1等效于对该通路旋转180度。
+     */
+    ret = AW_MPI_VI_SetVippMirror(detector->config.vi_device,
+                                  detector->config.mirror ? 1 : 0);
+    if (ret != SUCCESS) {
+        aloge("[NPU] Set VIPP mirror failed: value=%d, ret=%d",
+              detector->config.mirror ? 1 : 0,
+              ret);
+        goto error;
+    }
+
+    ret = AW_MPI_VI_SetVippFlip(detector->config.vi_device,
+                                detector->config.flip ? 1 : 0);
+    if (ret != SUCCESS) {
+        aloge("[NPU] Set VIPP flip failed: value=%d, ret=%d",
+              detector->config.flip ? 1 : 0,
+              ret);
+        goto error;
+    }
+
     ret = AW_MPI_VI_CreateVirChn(detector->config.vi_device,
                                  detector->config.vi_channel,
                                  NULL);
@@ -555,13 +578,15 @@ int npu_detector_start(NpuDetectorContext *detector)
     detector->thread_started = 1;
 
     alogd("[NPU] Realtime detector started: model=%s, vipp=%d, chn=%d, "
-          "%dx%d@%dfps, threshold=%.2f, nms=%.2f",
+          "%dx%d@%dfps, mirror=%d, flip=%d, threshold=%.2f, nms=%.2f",
           detector->model_path,
           detector->config.vi_device,
           detector->config.vi_channel,
           detector->config.width,
           detector->config.height,
           detector->config.frame_rate,
+          detector->config.mirror ? 1 : 0,
+          detector->config.flip ? 1 : 0,
           detector->config.confidence_threshold,
           detector->config.nms_threshold);
     return 0;
