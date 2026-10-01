@@ -12,6 +12,7 @@
 #include "context.h"
 #include "log.h"
 #include "mp4_recorder.h"
+#include "npu_self_test.h"
 #include "platform.h"
 #include "rtsp_stream.h"
 #include "time_osd.h"
@@ -194,7 +195,6 @@ int main(int argc, char *argv[])
     const unsigned char *h264_header = NULL;
     size_t h264_header_size = 0U;
 
-    (void)argc;
     memset(&media_consumers, 0, sizeof(media_consumers));
 
     /* 保留原项目的全局 MPP 互斥量，供后续多模块协作扩展。 */
@@ -212,6 +212,21 @@ int main(int argc, char *argv[])
         goto cleanup;
     }
     log_initialized = 1;
+
+    /*
+     * 阶段9.1提供独立NPU自检模式，不启动摄像头、编码、RTSP和录像链路。
+     * 用法：sample_strip --npu-self-test [model.nb] [input.nv21]
+     */
+    if (argc > 1 && strcmp(argv[1], "--npu-self-test") == 0) {
+        const char *model_path = argc > 2 ? argv[2] : "/lib/1.1.0_Beta.nb";
+        const char *input_path = argc > 3 ? argv[3] : NULL;
+
+        alogd("[Main] Running Stage 9.1 NPU single-frame self-test");
+        ret = npu_self_test_run(model_path, input_path, 0.25f) == 0
+                  ? EXIT_SUCCESS
+                  : EXIT_FAILURE;
+        goto cleanup;
+    }
 
     alogd("======================================================");
     alogd("[Main] Starting IP Camera Application");
