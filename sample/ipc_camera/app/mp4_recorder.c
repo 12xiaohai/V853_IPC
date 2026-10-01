@@ -15,6 +15,8 @@
 #define MP4_MAX_PACKS_PER_FRAME 8
 #define MP4_VIDEO_STREAM_ID 0
 #define MP4_AUDIO_STREAM_ID 1
+#define AAC_ADTS_HEADER_SIZE 7U
+#define AAC_ADTS_CRC_HEADER_SIZE 9U
 
 struct Mp4RecorderContext {
     Mp4RecorderConfig config;
@@ -36,7 +38,53 @@ struct Mp4RecorderContext {
     unsigned long long audio_frames;
     unsigned long long skipped_video_frames;
     unsigned long long skipped_audio_frames;
+    unsigned long long stripped_adts_frames;
 };
+
+/*
+ * AENC在attachAACHeader=1时输出ADTS格式，便于直接保存成独立的.aac文件。
+ * 但MP4的audio sample只能保存AAC原始访问单元，不能包含每帧的ADTS头。
+ *
+ * 本函数只修改AUDIO_STREAM_S描述符的副本：把数据指针越过7/9字节头部并
+ * 缩短长度，不复制也不改写AENC原始缓冲。因此独立AAC文件和RTSP仍然收到
+ * 完整ADTS帧，只有送入MP4 MUX的数据会去掉ADTS头。
+ *
+ * 返回值：1表示剥离了ADTS头，0表示输入已经是裸AAC，-1表示ADTS帧非法。
+ */
+static int prepare_aac_sample_for_mp4(const AUDIO_STREAM_S *source,
+                                      AUDIO_STREAM_S *destination)
+{
+    unsigned int header_size;
+    unsigned int frame_size;
+
+    *destination = *source;
+
+    /* ADTS同步字固定为12个1，即首字节0xff、次字节高4位0xf。 */
+    if (source->mLen < 2U || source->pStream[0] != 0xffU ||
+        (source->pStream[1] & 0xf0U) != 0xf0U) {
+        return 0;
+    }
+
+    /* protection_absent为0时，ADTS头末尾还包含2字节CRC。 */
+    header_size = (source->pStream[1] & 0x01U) != 0U
+                      ? AAC_ADTS_HEADER_SIZE
+                      : AAC_ADTS_CRC_HEADER_SIZE;
+    if (source->mLen < header_size) {
+        return -1;
+    }
+
+    /* frame_length是13位字段，长度包含ADTS头和AAC有效载荷。 */
+    frame_size = ((unsigned int)(source->pStream[3] & 0x03U) << 11) |
+                 ((unsigned int)source->pStream[4] << 3) |
+                 ((unsigned int)(source->pStream[5] & 0xe0U) >> 5);
+    if (frame_size != source->mLen || frame_size <= header_size) {
+        return -1;
+    }
+
+    destination->pStream += header_size;
+    destination->mLen -= header_size;
+    return 1;
+}
 
 /*
  * 固定文件模式不需要切换FD，但MUX在正常收尾时仍会报告RECORD_DONE。
@@ -312,6 +360,7 @@ int mp4_recorder_push_audio(Mp4RecorderContext *recorder,
 {
     AUDIO_STREAM_S local_stream;
     ERRORTYPE ret;
+    int adts_result;
     int result = 0;
 
     if (recorder == NULL || stream == NULL ||
@@ -332,7 +381,26 @@ int mp4_recorder_push_audio(Mp4RecorderContext *recorder,
         return 0;
     }
 
-    local_stream = *stream;
+    adts_result = prepare_aac_sample_for_mp4(stream, &local_stream);
+    if (adts_result < 0) {
+        ++recorder->skipped_audio_frames;
+        aloge("[MP4] Invalid ADTS frame: id=%d, bytes=%u",
+              stream->mId,
+              stream->mLen);
+        pthread_mutex_unlock(&recorder->send_lock);
+        return -1;
+    }
+    if (adts_result > 0) {
+        ++recorder->stripped_adts_frames;
+        if (recorder->stripped_adts_frames == 1ULL) {
+            alogd("[MP4] ADTS header stripped before MUX: "
+                  "id=%d, input=%u, sample=%u",
+                  stream->mId,
+                  stream->mLen,
+                  local_stream.mLen);
+        }
+    }
+
     ret = AW_MPI_MUX_SendAudioStreamSync(recorder->config.mux_channel,
                                          &local_stream,
                                          MP4_AUDIO_STREAM_ID);
@@ -387,11 +455,13 @@ int mp4_recorder_stop(Mp4RecorderContext *recorder)
     }
 
     alogd("[MP4] Recorder stopped: video=%llu, audio=%llu, "
-          "skipped_video=%llu, skipped_audio=%llu, file=%s",
+          "skipped_video=%llu, skipped_audio=%llu, "
+          "adts_stripped=%llu, file=%s",
           recorder->video_frames,
           recorder->audio_frames,
           recorder->skipped_video_frames,
           recorder->skipped_audio_frames,
+          recorder->stripped_adts_frames,
           recorder->output_path);
     return result;
 }
