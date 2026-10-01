@@ -1,11 +1,15 @@
 #include "mp4_recorder.h"
 
+#include <ctype.h>
+#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <sys/statvfs.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -20,6 +24,12 @@
 #define MP4_AUDIO_STREAM_ID 1
 #define AAC_ADTS_HEADER_SIZE 7U
 #define AAC_ADTS_CRC_HEADER_SIZE 9U
+#define BYTES_PER_MIB (1024ULL * 1024ULL)
+
+typedef struct RecordingFileInfo {
+    char path[MP4_RECORDER_PATH_SIZE];
+    time_t modified_time;
+} RecordingFileInfo;
 
 struct Mp4RecorderContext {
     Mp4RecorderConfig config;
@@ -51,9 +61,12 @@ struct Mp4RecorderContext {
     int rotation_thread_created;
     int rotation_stop_requested;
     int next_fd_requested;
+    int cleanup_requested;
     int rotation_failed;
+    int storage_failed;
     unsigned int file_sequence;
     unsigned long long completed_files;
+    unsigned long long deleted_files;
 
     unsigned long long video_frames;
     unsigned long long audio_frames;
@@ -131,6 +144,239 @@ static int open_new_segment(Mp4RecorderContext *recorder,
     return -1;
 }
 
+static int is_decimal_text(const char *text, size_t length)
+{
+    size_t index;
+
+    for (index = 0U; index < length; ++index) {
+        if (!isdigit((unsigned char)text[index])) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+/*
+ * 只接受“前缀_YYYYMMDD_HHMMSS_NNNN.mp4”。严格匹配是循环删除的安全边界，
+ * 类似record_backup.mp4、sample_demo.mp4以及其他用户文件都不会进入候选集。
+ */
+static int is_managed_recording_name(const Mp4RecorderContext *recorder,
+                                     const char *name)
+{
+    size_t prefix_length = strlen(recorder->file_prefix);
+    const char *suffix;
+
+    if (strncmp(name, recorder->file_prefix, prefix_length) != 0) {
+        return 0;
+    }
+    suffix = name + prefix_length;
+    if (strlen(suffix) != 25U || suffix[0] != '_' || suffix[9] != '_' ||
+        suffix[16] != '_' || strcmp(suffix + 21, ".mp4") != 0) {
+        return 0;
+    }
+    return is_decimal_text(suffix + 1, 8U) &&
+           is_decimal_text(suffix + 10, 6U) &&
+           is_decimal_text(suffix + 17, 4U);
+}
+
+static int compare_recording_files(const void *left, const void *right)
+{
+    const RecordingFileInfo *left_file = left;
+    const RecordingFileInfo *right_file = right;
+
+    if (left_file->modified_time < right_file->modified_time) {
+        return -1;
+    }
+    if (left_file->modified_time > right_file->modified_time) {
+        return 1;
+    }
+    return strcmp(left_file->path, right_file->path);
+}
+
+/* 扫描录像目录，仅收集严格匹配命名规则的普通文件，不跟随符号链接。 */
+static int scan_managed_recordings(Mp4RecorderContext *recorder,
+                                   RecordingFileInfo **files_out,
+                                   size_t *count_out)
+{
+    DIR *directory;
+    struct dirent *entry;
+    RecordingFileInfo *files = NULL;
+    size_t count = 0U;
+    size_t capacity = 0U;
+
+    directory = opendir(recorder->output_directory);
+    if (directory == NULL) {
+        aloge("[MP4] Open recording directory failed: dir=%s, errno=%d",
+              recorder->output_directory,
+              errno);
+        return -1;
+    }
+
+    while ((entry = readdir(directory)) != NULL) {
+        RecordingFileInfo *expanded_files;
+        struct stat file_status;
+        int length;
+
+        if (!is_managed_recording_name(recorder, entry->d_name)) {
+            continue;
+        }
+        if (count == capacity) {
+            size_t next_capacity = capacity == 0U ? 16U : capacity * 2U;
+
+            expanded_files = realloc(files,
+                                     next_capacity * sizeof(files[0]));
+            if (expanded_files == NULL) {
+                free(files);
+                closedir(directory);
+                return -1;
+            }
+            files = expanded_files;
+            capacity = next_capacity;
+        }
+
+        length = snprintf(files[count].path,
+                          sizeof(files[count].path),
+                          "%s%s%s",
+                          recorder->output_directory,
+                          recorder->output_directory[
+                              strlen(recorder->output_directory) - 1U] == '/'
+                              ? ""
+                              : "/",
+                          entry->d_name);
+        if (length < 0 || (size_t)length >= sizeof(files[count].path)) {
+            alogw("[MP4] Skip recording with overlong path: %s",
+                  entry->d_name);
+            continue;
+        }
+        if (lstat(files[count].path, &file_status) != 0 ||
+            !S_ISREG(file_status.st_mode)) {
+            alogw("[MP4] Skip non-regular recording entry: %s",
+                  files[count].path);
+            continue;
+        }
+        files[count].modified_time = file_status.st_mtime;
+        ++count;
+    }
+    closedir(directory);
+
+    if (count > 1U) {
+        qsort(files, count, sizeof(files[0]), compare_recording_files);
+    }
+    *files_out = files;
+    *count_out = count;
+    return 0;
+}
+
+static int get_available_space(const Mp4RecorderContext *recorder,
+                               unsigned long long *available_bytes)
+{
+    struct statvfs file_system;
+
+    if (statvfs(recorder->output_directory, &file_system) != 0) {
+        aloge("[MP4] Query free space failed: dir=%s, errno=%d",
+              recorder->output_directory,
+              errno);
+        return -1;
+    }
+    *available_bytes =
+        (unsigned long long)file_system.f_bavail * file_system.f_frsize;
+    return 0;
+}
+
+/*
+ * 删除最旧的受管录像，直到满足数量和剩余空间要求。protected_path是当前仍在
+ * 写入的文件，任何情况下都不会删除。reserve_slots用于为即将创建的新段预留
+ * 一个名额；如果只有受保护文件导致暂时超限，会在文件切换完成后再次清理。
+ */
+static int prune_old_recordings(Mp4RecorderContext *recorder,
+                                const char *protected_path,
+                                unsigned int reserve_slots)
+{
+    RecordingFileInfo *files = NULL;
+    size_t count = 0U;
+    unsigned long long available_bytes = 0ULL;
+    unsigned long long minimum_bytes =
+        (unsigned long long)recorder->config.min_free_space_mb * BYTES_PER_MIB;
+    int result = 0;
+
+    if (recorder->config.max_segment_files <= 0 && minimum_bytes == 0ULL) {
+        return 0;
+    }
+    if (scan_managed_recordings(recorder, &files, &count) != 0) {
+        return -1;
+    }
+    if (minimum_bytes > 0ULL &&
+        get_available_space(recorder, &available_bytes) != 0) {
+        free(files);
+        return -1;
+    }
+
+    for (;;) {
+        int too_many = recorder->config.max_segment_files > 0 &&
+                       count + reserve_slots >
+                           (size_t)recorder->config.max_segment_files;
+        int too_little_space = minimum_bytes > 0ULL &&
+                               available_bytes < minimum_bytes;
+        size_t candidate = (size_t)-1;
+        size_t index;
+
+        if (!too_many && !too_little_space) {
+            break;
+        }
+        for (index = 0U; index < count; ++index) {
+            if (protected_path == NULL ||
+                strcmp(files[index].path, protected_path) != 0) {
+                candidate = index;
+                break;
+            }
+        }
+        if (candidate == (size_t)-1) {
+            if (too_little_space) {
+                aloge("[MP4] Free-space target cannot be reached: "
+                      "available=%llu MiB, required=%llu MiB",
+                      available_bytes / BYTES_PER_MIB,
+                      minimum_bytes / BYTES_PER_MIB);
+                result = -1;
+            } else {
+                alogw("[MP4] File-count limit temporarily exceeded because "
+                      "the only candidate is active");
+            }
+            break;
+        }
+
+        if (unlink(files[candidate].path) != 0) {
+            aloge("[MP4] Delete old recording failed: file=%s, errno=%d",
+                  files[candidate].path,
+                  errno);
+            result = -1;
+            break;
+        }
+        ++recorder->deleted_files;
+        alogd("[MP4] Deleted old recording: %s", files[candidate].path);
+
+        if (candidate + 1U < count) {
+            memmove(&files[candidate],
+                    &files[candidate + 1U],
+                    (count - candidate - 1U) * sizeof(files[0]));
+        }
+        --count;
+        if (minimum_bytes > 0ULL &&
+            get_available_space(recorder, &available_bytes) != 0) {
+            result = -1;
+            break;
+        }
+    }
+
+    alogd("[MP4] Storage check: managed=%u, available=%llu MiB, "
+          "limit=%d, reserve=%u",
+          (unsigned int)count,
+          minimum_bytes > 0ULL ? available_bytes / BYTES_PER_MIB : 0ULL,
+          recorder->config.max_segment_files,
+          reserve_slots);
+    free(files);
+    return result;
+}
+
 /* 打开下一个文件并交给MUX；MPP内部会持有自己的文件描述符引用。 */
 static int switch_to_next_segment(Mp4RecorderContext *recorder)
 {
@@ -138,6 +384,10 @@ static int switch_to_next_segment(Mp4RecorderContext *recorder)
     int next_fd;
     ERRORTYPE ret;
 
+    /* 先清理再创建，避免磁盘已接近阈值时继续无条件增加文件。 */
+    if (prune_old_recordings(recorder, recorder->output_path, 1U) != 0) {
+        return -1;
+    }
     next_fd = open_new_segment(recorder, next_path, sizeof(next_path));
     if (next_fd < 0) {
         return -1;
@@ -148,6 +398,7 @@ static int switch_to_next_segment(Mp4RecorderContext *recorder)
     if (!recorder->accepting_frames || !recorder->mux_started) {
         pthread_mutex_unlock(&recorder->send_lock);
         close(next_fd);
+        unlink(next_path);
         return 0;
     }
     ret = AW_MPI_MUX_SwitchFd(recorder->config.mux_channel, next_fd, 0);
@@ -159,6 +410,8 @@ static int switch_to_next_segment(Mp4RecorderContext *recorder)
     /* 参考原项目：SwitchFd成功返回后，MUX已经保存了自己的fd引用。 */
     close(next_fd);
     if (ret != SUCCESS) {
+        /* SwitchFd失败时MUX没有使用该文件，删除刚创建的空占位文件。 */
+        unlink(next_path);
         aloge("[MP4] Switch to next segment failed: file=%s, ret=%d",
               next_path,
               ret);
@@ -176,9 +429,13 @@ static void *segment_rotation_thread(void *argument)
 
     alogd("[MP4] Segment rotation thread started");
     for (;;) {
+        int need_next_file;
+        int need_cleanup;
+
         pthread_mutex_lock(&recorder->rotation_lock);
         while (!recorder->rotation_stop_requested &&
-               !recorder->next_fd_requested) {
+               !recorder->next_fd_requested &&
+               !recorder->cleanup_requested) {
             pthread_cond_wait(&recorder->rotation_cond,
                               &recorder->rotation_lock);
         }
@@ -186,12 +443,21 @@ static void *segment_rotation_thread(void *argument)
             pthread_mutex_unlock(&recorder->rotation_lock);
             break;
         }
+        need_next_file = recorder->next_fd_requested;
+        need_cleanup = recorder->cleanup_requested;
         recorder->next_fd_requested = 0;
+        recorder->cleanup_requested = 0;
         pthread_mutex_unlock(&recorder->rotation_lock);
 
-        if (switch_to_next_segment(recorder) != 0) {
+        if (need_next_file && switch_to_next_segment(recorder) != 0) {
             pthread_mutex_lock(&recorder->rotation_lock);
             recorder->rotation_failed = 1;
+            pthread_mutex_unlock(&recorder->rotation_lock);
+        }
+        if (need_cleanup &&
+            prune_old_recordings(recorder, recorder->output_path, 0U) != 0) {
+            pthread_mutex_lock(&recorder->rotation_lock);
+            recorder->storage_failed = 1;
             pthread_mutex_unlock(&recorder->rotation_lock);
         }
     }
@@ -265,6 +531,11 @@ static ERRORTYPE mp4_mux_callback(void *cookie,
         int muxer_id = event_data != NULL ? *(int *)event_data : -1;
         pthread_mutex_lock(&recorder->rotation_lock);
         ++recorder->completed_files;
+        if (recorder->config.segment_duration_seconds > 0 &&
+            !recorder->rotation_stop_requested) {
+            recorder->cleanup_requested = 1;
+            pthread_cond_signal(&recorder->rotation_cond);
+        }
         pthread_mutex_unlock(&recorder->rotation_lock);
         alogd("[MP4] MUX reported record done: muxer_id=%d", muxer_id);
     } else if (event == MPP_EVENT_NEED_NEXT_FD) {
@@ -340,7 +611,8 @@ Mp4RecorderContext *mp4_recorder_create(const Mp4RecorderConfig *config)
         config->width <= 0 || config->height <= 0 ||
         config->frame_rate <= 0 || config->sample_rate <= 0 ||
         config->audio_channels <= 0 || config->samples_per_frame <= 0 ||
-        config->segment_duration_seconds < 0) {
+        config->segment_duration_seconds < 0 ||
+        config->max_segment_files < 0) {
         return NULL;
     }
 
@@ -352,9 +624,24 @@ Mp4RecorderContext *mp4_recorder_create(const Mp4RecorderConfig *config)
         prefix_length = strlen(config->file_prefix);
         if (directory_length == 0U ||
             directory_length >= MP4_RECORDER_PATH_SIZE ||
+            config->output_directory[0] != '/' ||
+            strcmp(config->output_directory, "/") == 0 ||
+            strstr(config->output_directory, "/../") != NULL ||
             prefix_length == 0U ||
             prefix_length >= MP4_RECORDER_PREFIX_SIZE) {
             return NULL;
+        }
+        {
+            size_t index;
+
+            for (index = 0U; index < prefix_length; ++index) {
+                unsigned char character =
+                    (unsigned char)config->file_prefix[index];
+
+                if (!isalnum(character) && character != '-') {
+                    return NULL;
+                }
+            }
         }
         path_length = 0U;
     } else {
@@ -433,6 +720,7 @@ int mp4_recorder_start(Mp4RecorderContext *recorder)
     MUX_CHN_ATTR_S attributes;
     VencHeaderData header;
     MPPCallbackInfo callback_info;
+    struct stat directory_status;
     ERRORTYPE ret;
 
     if (recorder == NULL || recorder->mux_started) {
@@ -440,6 +728,17 @@ int mp4_recorder_start(Mp4RecorderContext *recorder)
     }
 
     if (recorder->config.segment_duration_seconds > 0) {
+        if (lstat(recorder->output_directory, &directory_status) != 0 ||
+            !S_ISDIR(directory_status.st_mode)) {
+            aloge("[MP4] Recording directory is unavailable or unsafe: %s",
+                  recorder->output_directory);
+            return -1;
+        }
+        /* 为即将创建的首段预留一个文件名额，并检查最低剩余空间。 */
+        if (prune_old_recordings(recorder, NULL, 1U) != 0) {
+            aloge("[MP4] Initial storage cleanup failed");
+            return -1;
+        }
         recorder->output_fd = open_new_segment(recorder,
                                                recorder->output_path,
                                                sizeof(recorder->output_path));
@@ -527,7 +826,9 @@ int mp4_recorder_start(Mp4RecorderContext *recorder)
     if (recorder->config.segment_duration_seconds > 0) {
         recorder->rotation_stop_requested = 0;
         recorder->next_fd_requested = 0;
+        recorder->cleanup_requested = 0;
         recorder->rotation_failed = 0;
+        recorder->storage_failed = 0;
         if (pthread_create(&recorder->rotation_thread,
                            NULL,
                            segment_rotation_thread,
@@ -730,19 +1031,27 @@ int mp4_recorder_stop(Mp4RecorderContext *recorder)
         recorder->output_fd = -1;
     }
 
-    if (recorder->rotation_failed) {
+    /* 最后一段已经封口，再同步执行一次清理；保留本次最后生成的文件。 */
+    if (recorder->config.segment_duration_seconds > 0 &&
+        prune_old_recordings(recorder, recorder->output_path, 0U) != 0) {
+        recorder->storage_failed = 1;
+    }
+
+    if (recorder->rotation_failed || recorder->storage_failed) {
         result = -1;
     }
 
     alogd("[MP4] Recorder stopped: video=%llu, audio=%llu, "
           "skipped_video=%llu, skipped_audio=%llu, "
-          "adts_stripped=%llu, completed_files=%llu, file=%s",
+          "adts_stripped=%llu, completed_files=%llu, deleted_files=%llu, "
+          "file=%s",
           recorder->video_frames,
           recorder->audio_frames,
           recorder->skipped_video_frames,
           recorder->skipped_audio_frames,
           recorder->stripped_adts_frames,
           recorder->completed_files,
+          recorder->deleted_files,
           recorder->output_path);
     return result;
 }

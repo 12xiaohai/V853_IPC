@@ -27,6 +27,8 @@ typedef struct Mp4RecorderConfig {
     const char *output_directory;
     const char *file_prefix;
     int segment_duration_seconds;
+    int max_segment_files;       /* 0表示不按文件数量清理。 */
+    unsigned int min_free_space_mb; /* 0表示不按剩余空间清理。 */
     const unsigned char *h264_header; /* VENC产生的SPS/PPS。 */
     size_t h264_header_size;
 } Mp4RecorderConfig;

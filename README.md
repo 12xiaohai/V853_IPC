@@ -55,8 +55,10 @@ and 60-second MPP MUX file rotation. A dedicated worker handles next-file
 requests outside the MPP callback, and the minimum-duration policy switches on
 a key-frame boundary. Board validation confirmed that both the automatically
 completed segment and the final partial segment contain playable video and
-audio. Stage 8.2 is complete; cyclic deletion and free-space management follow
-in Stage 8.3.
+audio. Stage 8.2 is complete. Stage 8.3 now scans only strictly named recording
+files, keeps at most ten segments, reserves 512 MiB of free space, protects the
+active file, and removes the oldest managed recording when a limit is reached.
+Board validation of the storage policy is the current task.
 Build in a Linux environment:
 
 ```sh

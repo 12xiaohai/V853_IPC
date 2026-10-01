@@ -368,6 +368,9 @@ int main(int argc, char *argv[])
     mp4_config.output_directory = "/mnt/UDISK";
     mp4_config.file_prefix = "record";
     mp4_config.segment_duration_seconds = 60;
+    /* 阶段8.3最多保留10段录像，并尽量保证UDISK至少剩余512 MiB。 */
+    mp4_config.max_segment_files = 10;
+    mp4_config.min_free_space_mb = 512;
     mp4_config.h264_header = h264_header;
     mp4_config.h264_header_size = h264_header_size;
 
