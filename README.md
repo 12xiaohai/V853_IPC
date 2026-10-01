@@ -72,8 +72,9 @@ frame can validate model loading and NPU execution before the real-time VI
 path is connected. The checked-in `yolov8-nv12` conversion workspace shows
 that the NBG model contains a 320x320 NV12 preprocessing node. Real-image,
 repeated-run, and existing-feature regression validation have passed on the
-isolated `feature/yolov8-edge-validation` branch. Stage 9.1 is complete and
-ready to merge; Stages 9.2 through 9.7 continue directly on `main`.
+isolated `feature/yolov8-edge-validation` branch. Its cleaned final snapshot
+has been merged into `main`; Stage 9.1 is complete, and Stages 9.2 through 9.7
+continue directly on `main`.
 
 Run the Stage 9.1 NPU self-test on the board:
 
