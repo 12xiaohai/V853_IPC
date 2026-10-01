@@ -50,8 +50,11 @@ key frame, and writes `/mnt/UDISK/sample_demo.mp4` without creating a second
 encoder pipeline. Stage 8.1 has passed board validation: the recorder maps the
 video and audio stream IDs correctly, strips ADTS headers only from AAC samples
 sent to the MP4 muxer, closes the file cleanly, and produces a recording whose
-video and audio play correctly. The next task is Stage 8.2: timestamp-based file
-naming, timed file rotation, and cyclic storage management.
+video and audio play correctly. Stage 8.2 now adds timestamp-based file names
+and 60-second MPP MUX file rotation. A dedicated worker handles next-file
+requests outside the MPP callback, and the minimum-duration policy switches on
+a key-frame boundary. Board validation of multiple consecutive segments is the
+current task; cyclic deletion and free-space management follow in Stage 8.3.
 Build in a Linux environment:
 
 ```sh

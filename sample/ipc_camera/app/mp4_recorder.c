@@ -1,7 +1,9 @@
 #include "mp4_recorder.h"
 
+#include <errno.h>
 #include <fcntl.h>
 #include <pthread.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -11,6 +13,7 @@
 #include <utils/plat_log.h>
 
 #define MP4_RECORDER_PATH_SIZE 256
+#define MP4_RECORDER_PREFIX_SIZE 64
 #define MP4_SIMPLE_CACHE_SIZE (64 * 1024)
 #define MP4_MAX_PACKS_PER_FRAME 8
 #define MP4_VIDEO_STREAM_ID 0
@@ -21,6 +24,8 @@
 struct Mp4RecorderContext {
     Mp4RecorderConfig config;
     char output_path[MP4_RECORDER_PATH_SIZE];
+    char output_directory[MP4_RECORDER_PATH_SIZE];
+    char file_prefix[MP4_RECORDER_PREFIX_SIZE];
     unsigned char *h264_header;
     size_t h264_header_size;
 
@@ -34,12 +39,166 @@ struct Mp4RecorderContext {
     pthread_mutex_t send_lock;
     int lock_initialized;
 
+    /*
+     * MUX回调只投递“需要下一个文件”的事件，专用线程负责open和SwitchFd。
+     * 这样不会在MPP内部回调线程中重入MUX接口。
+     */
+    pthread_mutex_t rotation_lock;
+    pthread_cond_t rotation_cond;
+    pthread_t rotation_thread;
+    int rotation_lock_initialized;
+    int rotation_cond_initialized;
+    int rotation_thread_created;
+    int rotation_stop_requested;
+    int next_fd_requested;
+    int rotation_failed;
+    unsigned int file_sequence;
+    unsigned long long completed_files;
+
     unsigned long long video_frames;
     unsigned long long audio_frames;
     unsigned long long skipped_video_frames;
     unsigned long long skipped_audio_frames;
     unsigned long long stripped_adts_frames;
 };
+
+/* 根据本地系统时间生成不会互相覆盖的MP4文件名。 */
+static int generate_segment_path(Mp4RecorderContext *recorder,
+                                 char *path,
+                                 size_t path_size)
+{
+    time_t now;
+    struct tm local_time;
+    char time_text[32];
+    const char *separator;
+    int length;
+
+    now = time(NULL);
+    if (localtime_r(&now, &local_time) == NULL ||
+        strftime(time_text,
+                 sizeof(time_text),
+                 "%Y%m%d_%H%M%S",
+                 &local_time) == 0U) {
+        return -1;
+    }
+
+    separator = recorder->output_directory[
+                    strlen(recorder->output_directory) - 1U] == '/'
+                    ? ""
+                    : "/";
+    length = snprintf(path,
+                      path_size,
+                      "%s%s%s_%s_%04u.mp4",
+                      recorder->output_directory,
+                      separator,
+                      recorder->file_prefix,
+                      time_text,
+                      recorder->file_sequence++);
+    if (length < 0 || (size_t)length >= path_size) {
+        return -1;
+    }
+    return 0;
+}
+
+/*
+ * O_EXCL保证应用重启或系统时间回拨时不会覆盖已有录像。若同名则递增序号
+ * 继续尝试，成功后返回新文件描述符。
+ */
+static int open_new_segment(Mp4RecorderContext *recorder,
+                            char *path,
+                            size_t path_size)
+{
+    unsigned int attempt;
+    int fd;
+
+    for (attempt = 0U; attempt < 10000U; ++attempt) {
+        if (generate_segment_path(recorder, path, path_size) != 0) {
+            return -1;
+        }
+        fd = open(path, O_RDWR | O_CREAT | O_EXCL, 0666);
+        if (fd >= 0) {
+            return fd;
+        }
+        if (errno != EEXIST) {
+            aloge("[MP4] Open segment failed: file=%s, errno=%d",
+                  path,
+                  errno);
+            return -1;
+        }
+    }
+
+    aloge("[MP4] Cannot allocate a unique segment name");
+    return -1;
+}
+
+/* 打开下一个文件并交给MUX；MPP内部会持有自己的文件描述符引用。 */
+static int switch_to_next_segment(Mp4RecorderContext *recorder)
+{
+    char next_path[MP4_RECORDER_PATH_SIZE];
+    int next_fd;
+    ERRORTYPE ret;
+
+    next_fd = open_new_segment(recorder, next_path, sizeof(next_path));
+    if (next_fd < 0) {
+        return -1;
+    }
+
+    /* 与音视频Send*StreamSync串行，防止切换文件时同时向MUX提交码流。 */
+    pthread_mutex_lock(&recorder->send_lock);
+    if (!recorder->accepting_frames || !recorder->mux_started) {
+        pthread_mutex_unlock(&recorder->send_lock);
+        close(next_fd);
+        return 0;
+    }
+    ret = AW_MPI_MUX_SwitchFd(recorder->config.mux_channel, next_fd, 0);
+    if (ret == SUCCESS) {
+        memcpy(recorder->output_path, next_path, strlen(next_path) + 1U);
+    }
+    pthread_mutex_unlock(&recorder->send_lock);
+
+    /* 参考原项目：SwitchFd成功返回后，MUX已经保存了自己的fd引用。 */
+    close(next_fd);
+    if (ret != SUCCESS) {
+        aloge("[MP4] Switch to next segment failed: file=%s, ret=%d",
+              next_path,
+              ret);
+        return -1;
+    }
+
+    alogd("[MP4] Switched to next segment: %s", next_path);
+    return 0;
+}
+
+/* 处理MUX回调投递的文件切换请求。 */
+static void *segment_rotation_thread(void *argument)
+{
+    Mp4RecorderContext *recorder = argument;
+
+    alogd("[MP4] Segment rotation thread started");
+    for (;;) {
+        pthread_mutex_lock(&recorder->rotation_lock);
+        while (!recorder->rotation_stop_requested &&
+               !recorder->next_fd_requested) {
+            pthread_cond_wait(&recorder->rotation_cond,
+                              &recorder->rotation_lock);
+        }
+        if (recorder->rotation_stop_requested) {
+            pthread_mutex_unlock(&recorder->rotation_lock);
+            break;
+        }
+        recorder->next_fd_requested = 0;
+        pthread_mutex_unlock(&recorder->rotation_lock);
+
+        if (switch_to_next_segment(recorder) != 0) {
+            pthread_mutex_lock(&recorder->rotation_lock);
+            recorder->rotation_failed = 1;
+            pthread_mutex_unlock(&recorder->rotation_lock);
+        }
+    }
+
+    alogd("[MP4] Segment rotation thread stopped");
+    return NULL;
+}
 
 /*
  * AENC在attachAACHeader=1时输出ADTS格式，便于直接保存成独立的.aac文件。
@@ -87,8 +246,8 @@ static int prepare_aac_sample_for_mp4(const AUDIO_STREAM_S *source,
 }
 
 /*
- * 固定文件模式不需要切换FD，但MUX在正常收尾时仍会报告RECORD_DONE。
- * 注册回调可以接收这些状态，避免SDK提示“User should RegisterCallback”。
+ * 回调运行在MPP内部线程，只更新轻量状态并唤醒切片线程，不在这里打开文件或
+ * 调用SwitchFd，避免阻塞MPP和发生回调重入。
  */
 static ERRORTYPE mp4_mux_callback(void *cookie,
                                   MPP_CHN_S *channel,
@@ -104,10 +263,30 @@ static ERRORTYPE mp4_mux_callback(void *cookie,
 
     if (event == MPP_EVENT_RECORD_DONE) {
         int muxer_id = event_data != NULL ? *(int *)event_data : -1;
+        pthread_mutex_lock(&recorder->rotation_lock);
+        ++recorder->completed_files;
+        pthread_mutex_unlock(&recorder->rotation_lock);
         alogd("[MP4] MUX reported record done: muxer_id=%d", muxer_id);
     } else if (event == MPP_EVENT_NEED_NEXT_FD) {
-        /* 阶段8.1未启用分段，正常运行不应收到该事件。 */
-        alogw("[MP4] MUX requested next file unexpectedly");
+        int muxer_id = event_data != NULL ? *(int *)event_data : -1;
+
+        if (recorder->config.segment_duration_seconds <= 0) {
+            alogw("[MP4] MUX requested next file in fixed-file mode");
+            return SUCCESS;
+        }
+        if (muxer_id != 0) {
+            aloge("[MP4] Unexpected muxer id in next-file event: %d",
+                  muxer_id);
+            return FAILURE;
+        }
+
+        pthread_mutex_lock(&recorder->rotation_lock);
+        if (!recorder->rotation_stop_requested) {
+            recorder->next_fd_requested = 1;
+            pthread_cond_signal(&recorder->rotation_cond);
+        }
+        pthread_mutex_unlock(&recorder->rotation_lock);
+        alogd("[MP4] MUX requested the next segment");
     }
     return SUCCESS;
 }
@@ -139,7 +318,8 @@ static void fill_mux_attributes(const Mp4RecorderContext *recorder,
 
     attributes->mMuxerId = 0;
     attributes->mMediaFileFormat = MEDIA_FILE_FORMAT_MP4;
-    attributes->mMaxFileDuration = 0;  /* 阶段8.1按Ctrl+C结束，不自动分段。 */
+    attributes->mMaxFileDuration =
+        (int64_t)recorder->config.segment_duration_seconds * 1000;
     attributes->mMaxFileSizeBytes = 0;
     attributes->mCallbackOutFlag = FALSE;
     attributes->mFsWriteMode = FSWRITEMODE_SIMPLECACHE;
@@ -152,18 +332,41 @@ Mp4RecorderContext *mp4_recorder_create(const Mp4RecorderConfig *config)
 {
     Mp4RecorderContext *recorder;
     size_t path_length;
+    size_t directory_length;
+    size_t prefix_length;
 
-    if (config == NULL || config->output_path == NULL ||
+    if (config == NULL ||
         config->h264_header == NULL || config->h264_header_size == 0U ||
         config->width <= 0 || config->height <= 0 ||
         config->frame_rate <= 0 || config->sample_rate <= 0 ||
-        config->audio_channels <= 0 || config->samples_per_frame <= 0) {
+        config->audio_channels <= 0 || config->samples_per_frame <= 0 ||
+        config->segment_duration_seconds < 0) {
         return NULL;
     }
 
-    path_length = strlen(config->output_path);
-    if (path_length == 0U || path_length >= MP4_RECORDER_PATH_SIZE) {
-        return NULL;
+    if (config->segment_duration_seconds > 0) {
+        if (config->output_directory == NULL || config->file_prefix == NULL) {
+            return NULL;
+        }
+        directory_length = strlen(config->output_directory);
+        prefix_length = strlen(config->file_prefix);
+        if (directory_length == 0U ||
+            directory_length >= MP4_RECORDER_PATH_SIZE ||
+            prefix_length == 0U ||
+            prefix_length >= MP4_RECORDER_PREFIX_SIZE) {
+            return NULL;
+        }
+        path_length = 0U;
+    } else {
+        if (config->output_path == NULL) {
+            return NULL;
+        }
+        path_length = strlen(config->output_path);
+        if (path_length == 0U || path_length >= MP4_RECORDER_PATH_SIZE) {
+            return NULL;
+        }
+        directory_length = 0U;
+        prefix_length = 0U;
     }
 
     recorder = calloc(1, sizeof(*recorder));
@@ -172,8 +375,20 @@ Mp4RecorderContext *mp4_recorder_create(const Mp4RecorderConfig *config)
     }
 
     recorder->config = *config;
-    memcpy(recorder->output_path, config->output_path, path_length + 1U);
-    recorder->config.output_path = recorder->output_path;
+    if (config->segment_duration_seconds > 0) {
+        memcpy(recorder->output_directory,
+               config->output_directory,
+               directory_length + 1U);
+        memcpy(recorder->file_prefix,
+               config->file_prefix,
+               prefix_length + 1U);
+        recorder->config.output_directory = recorder->output_directory;
+        recorder->config.file_prefix = recorder->file_prefix;
+        recorder->config.output_path = NULL;
+    } else {
+        memcpy(recorder->output_path, config->output_path, path_length + 1U);
+        recorder->config.output_path = recorder->output_path;
+    }
 
     /* SPS/PPS来自VENC内部缓冲，录像上下文保存自己的副本。 */
     recorder->h264_header = malloc(config->h264_header_size);
@@ -194,6 +409,22 @@ Mp4RecorderContext *mp4_recorder_create(const Mp4RecorderConfig *config)
         return NULL;
     }
     recorder->lock_initialized = 1;
+
+    if (pthread_mutex_init(&recorder->rotation_lock, NULL) != 0) {
+        pthread_mutex_destroy(&recorder->send_lock);
+        free(recorder->h264_header);
+        free(recorder);
+        return NULL;
+    }
+    recorder->rotation_lock_initialized = 1;
+    if (pthread_cond_init(&recorder->rotation_cond, NULL) != 0) {
+        pthread_mutex_destroy(&recorder->rotation_lock);
+        pthread_mutex_destroy(&recorder->send_lock);
+        free(recorder->h264_header);
+        free(recorder);
+        return NULL;
+    }
+    recorder->rotation_cond_initialized = 1;
     return recorder;
 }
 
@@ -208,10 +439,16 @@ int mp4_recorder_start(Mp4RecorderContext *recorder)
         return -1;
     }
 
-    /* O_TRUNC保证每次阶段测试都生成一个全新的MP4文件。 */
-    recorder->output_fd = open(recorder->output_path,
-                               O_RDWR | O_CREAT | O_TRUNC,
-                               0666);
+    if (recorder->config.segment_duration_seconds > 0) {
+        recorder->output_fd = open_new_segment(recorder,
+                                               recorder->output_path,
+                                               sizeof(recorder->output_path));
+    } else {
+        /* 固定文件模式保持阶段8.1行为，每次启动生成全新的测试文件。 */
+        recorder->output_fd = open(recorder->output_path,
+                                   O_RDWR | O_CREAT | O_TRUNC,
+                                   0666);
+    }
     if (recorder->output_fd < 0) {
         aloge("[MP4] Open output file failed: %s", recorder->output_path);
         return -1;
@@ -229,6 +466,20 @@ int mp4_recorder_start(Mp4RecorderContext *recorder)
         goto error;
     }
     recorder->mux_created = 1;
+
+    if (recorder->config.segment_duration_seconds > 0) {
+        /*
+         * 最小时长策略会等到目标时长后的首个IDR再切换，保证每个新文件都
+         * 从关键帧开始，代价是实际片长可能比配置值多一个GOP以内。
+         */
+        ret = AW_MPI_MUX_SetSwitchFileDurationPolicy(
+            recorder->config.mux_channel,
+            RecordFileDurationPolicy_MinDuration);
+        if (ret != SUCCESS) {
+            aloge("[MP4] Set segment duration policy failed: ret=%d", ret);
+            goto error;
+        }
+    }
 
     memset(&callback_info, 0, sizeof(callback_info));
     callback_info.cookie = recorder;
@@ -273,26 +524,41 @@ int mp4_recorder_start(Mp4RecorderContext *recorder)
         goto error;
     }
 
+    if (recorder->config.segment_duration_seconds > 0) {
+        recorder->rotation_stop_requested = 0;
+        recorder->next_fd_requested = 0;
+        recorder->rotation_failed = 0;
+        if (pthread_create(&recorder->rotation_thread,
+                           NULL,
+                           segment_rotation_thread,
+                           recorder) != 0) {
+            aloge("[MP4] Create segment rotation thread failed");
+            goto error;
+        }
+        recorder->rotation_thread_created = 1;
+    }
+
     ret = AW_MPI_MUX_StartChn(recorder->config.mux_channel);
     if (ret != SUCCESS) {
         aloge("[MP4] Start MUX channel failed: ret=%d", ret);
         goto error;
     }
-    recorder->mux_started = 1;
 
     pthread_mutex_lock(&recorder->send_lock);
+    recorder->mux_started = 1;
     recorder->accepting_frames = 1;
     recorder->waiting_for_key_frame = 1;
     pthread_mutex_unlock(&recorder->send_lock);
 
     alogd("[MP4] Recorder started: mux=%d, video=%dx%d@%dfps, "
-          "audio=%dHz/%dch, file=%s",
+          "audio=%dHz/%dch, segment=%ds, file=%s",
           recorder->config.mux_channel,
           recorder->config.width,
           recorder->config.height,
           recorder->config.frame_rate,
           recorder->config.sample_rate,
           recorder->config.audio_channels,
+          recorder->config.segment_duration_seconds,
           recorder->output_path);
     return 0;
 
@@ -431,6 +697,16 @@ int mp4_recorder_stop(Mp4RecorderContext *recorder)
         pthread_mutex_unlock(&recorder->send_lock);
     }
 
+    /* 先停止切片线程，确保它不会与MUX停止/销毁过程并发调用SwitchFd。 */
+    if (recorder->rotation_thread_created) {
+        pthread_mutex_lock(&recorder->rotation_lock);
+        recorder->rotation_stop_requested = 1;
+        pthread_cond_signal(&recorder->rotation_cond);
+        pthread_mutex_unlock(&recorder->rotation_lock);
+        pthread_join(recorder->rotation_thread, NULL);
+        recorder->rotation_thread_created = 0;
+    }
+
     /* FALSE要求MUX正常收尾并写入MP4索引，不能在这里强制中断。 */
     if (recorder->mux_started) {
         ret = AW_MPI_MUX_StopChn(recorder->config.mux_channel, FALSE);
@@ -454,14 +730,19 @@ int mp4_recorder_stop(Mp4RecorderContext *recorder)
         recorder->output_fd = -1;
     }
 
+    if (recorder->rotation_failed) {
+        result = -1;
+    }
+
     alogd("[MP4] Recorder stopped: video=%llu, audio=%llu, "
           "skipped_video=%llu, skipped_audio=%llu, "
-          "adts_stripped=%llu, file=%s",
+          "adts_stripped=%llu, completed_files=%llu, file=%s",
           recorder->video_frames,
           recorder->audio_frames,
           recorder->skipped_video_frames,
           recorder->skipped_audio_frames,
           recorder->stripped_adts_frames,
+          recorder->completed_files,
           recorder->output_path);
     return result;
 }
@@ -478,6 +759,12 @@ void mp4_recorder_destroy(Mp4RecorderContext *recorder)
     }
     if (recorder->lock_initialized) {
         pthread_mutex_destroy(&recorder->send_lock);
+    }
+    if (recorder->rotation_cond_initialized) {
+        pthread_cond_destroy(&recorder->rotation_cond);
+    }
+    if (recorder->rotation_lock_initialized) {
+        pthread_mutex_destroy(&recorder->rotation_lock);
     }
     free(recorder->h264_header);
     free(recorder);

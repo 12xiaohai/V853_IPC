@@ -344,8 +344,8 @@ int main(int argc, char *argv[])
     time_osd_started = 1;
 
     /*
-     * 阶段8.1使用MPP MUX把现有H.264/AAC帧封装为MP4。这里不再创建第二套
-     * 编码器；录像、RTSP和裸流文件共享同一批带原始PTS的编码结果。
+     * 阶段8.2沿用阶段8.1的MPP MUX链路，并启用按时间命名的60秒分段录像。
+     * 录像、RTSP和裸流文件仍共享同一批带原始PTS的编码结果，不重复编码。
      */
     if (video_encoder_get_h264_header(video_encoder,
                                       &h264_header,
@@ -364,7 +364,10 @@ int main(int argc, char *argv[])
     mp4_config.audio_channels = 1;
     mp4_config.audio_bit_width = 16;
     mp4_config.samples_per_frame = 1024;
-    mp4_config.output_path = "/mnt/UDISK/sample_demo.mp4";
+    mp4_config.output_path = NULL; /* 分段模式下由录像器动态生成完整路径。 */
+    mp4_config.output_directory = "/mnt/UDISK";
+    mp4_config.file_prefix = "record";
+    mp4_config.segment_duration_seconds = 60;
     mp4_config.h264_header = h264_header;
     mp4_config.h264_header_size = h264_header_size;
 

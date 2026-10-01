@@ -9,7 +9,7 @@
 typedef struct Mp4RecorderContext Mp4RecorderContext;
 
 typedef struct Mp4RecorderConfig {
-    int mux_channel;             /* MPP MUX 通道号，阶段8.1固定使用0。 */
+    int mux_channel;             /* MPP MUX 通道号，当前固定使用0。 */
     int venc_channel;            /* H.264来源VENC通道号。 */
     int width;
     int height;
@@ -19,7 +19,14 @@ typedef struct Mp4RecorderConfig {
     int audio_channels;
     int audio_bit_width;
     int samples_per_frame;
-    const char *output_path;     /* 阶段8.1固定输出MP4路径。 */
+    /*
+     * segment_duration_seconds为0时写入固定output_path；大于0时启用阶段8.2
+     * 分段录像，由output_directory和file_prefix生成带时间的文件名。
+     */
+    const char *output_path;
+    const char *output_directory;
+    const char *file_prefix;
+    int segment_duration_seconds;
     const unsigned char *h264_header; /* VENC产生的SPS/PPS。 */
     size_t h264_header_size;
 } Mp4RecorderConfig;
