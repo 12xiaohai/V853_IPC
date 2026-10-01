@@ -22,6 +22,7 @@ struct DetectionOverlayContext {
     unsigned long long last_sequence;
     unsigned long long last_snapshot_ms;
     unsigned long long update_count;
+    unsigned int last_logged_regions;
 };
 
 /* 使用单调时间判断结果是否过期，避免NTP校时导致超时计算跳变。 */
@@ -102,9 +103,9 @@ static int clear_regions(DetectionOverlayContext *context)
 /*
  * 将模型坐标映射为目标VIPP坐标。
  *
- * NPU VIPP 8使用mirror+flip把倒置画面转为正立后再推理；而VIPP 0
- * 的编码画面仍保留原始方向。因此画框前要先做一次相反的镜像/翻转，
- * 否则框会出现在目标的对角位置。
+ * map_mirror/map_flip只用于NPU与目标视频方向不同的情况。V853板端
+ * 实测SetVippMirror/Flip会修改共享sensor方向，VIPP 0和VIPP 8同时生效，
+ * 所以当前主程序把这两项设为0，只做尺寸缩放。
  */
 static int map_detection_rect(const DetectionOverlayContext *context,
                               const YoloDetection *detection,
@@ -169,6 +170,9 @@ static int draw_snapshot(DetectionOverlayContext *context,
     unsigned int requested;
     unsigned int index;
     unsigned int drawn = 0U;
+    RECT_S first_video_rectangle;
+    YoloDetection first_model_detection;
+    int first_rectangle_valid = 0;
     int result = 0;
 
     if (clear_regions(context) != 0) {
@@ -237,15 +241,40 @@ static int draw_snapshot(DetectionOverlayContext *context,
 
         ++drawn;
         context->active_regions = drawn;
+        if (!first_rectangle_valid) {
+            first_video_rectangle =
+                channel_attributes.unChnAttr.stOrlChn.stRect;
+            first_model_detection = *detection;
+            first_rectangle_valid = 1;
+        }
     }
 
     ++context->update_count;
-    if (snapshot->detection_count > 0 ||
-        (context->update_count % 100U) == 0U) {
-        alogd("[ORL] Boxes updated: sequence=%llu, detected=%d, drawn=%u",
-              snapshot->sequence,
-              snapshot->detection_count,
-              context->active_regions);
+    /*
+     * 人数变化或每50次更新输出一次坐标，既方便校准，也避免10 FPS
+     * 持续刷日志影响媒体线程。
+     */
+    if (drawn != context->last_logged_regions ||
+        (context->update_count % 50U) == 0U) {
+        if (first_rectangle_valid) {
+            alogd("[ORL] Box map: sequence=%llu, model=(%d,%d)-(%d,%d), "
+                  "video=(%d,%d)-(%d,%d), drawn=%u",
+                  snapshot->sequence,
+                  first_model_detection.xmin,
+                  first_model_detection.ymin,
+                  first_model_detection.xmax,
+                  first_model_detection.ymax,
+                  first_video_rectangle.X,
+                  first_video_rectangle.Y,
+                  first_video_rectangle.X + first_video_rectangle.Width,
+                  first_video_rectangle.Y + first_video_rectangle.Height,
+                  drawn);
+        } else {
+            alogd("[ORL] Boxes cleared: sequence=%llu, detected=%d",
+                  snapshot->sequence,
+                  snapshot->detection_count);
+        }
+        context->last_logged_regions = drawn;
     }
     return result;
 }
@@ -311,6 +340,7 @@ DetectionOverlayContext *detection_overlay_create(
         return NULL;
     }
     context->config = *config;
+    context->last_logged_regions = (unsigned int)-1;
     context->target_channel.mModId = MOD_ID_VIU;
     context->target_channel.mDevId = config->target_vi_device;
     context->target_channel.mChnId = config->target_vi_channel;

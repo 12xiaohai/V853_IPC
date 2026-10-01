@@ -22,8 +22,9 @@ typedef struct DetectionOverlayConfig {
     int model_height;
 
     /*
-     * NPU图像为了正立而做了mirror/flip时，原始编码画面并没有同步变换。
-     * 这两项用于把正立NPU坐标反变换回原始编码坐标。
+     * 仅当NPU图像和目标编码画面方向不同时才启用。V853当前的
+     * mirror/flip实测作用于共享sensor，VIPP 0和VIPP 8方向一致，
+     * 因此main.c中保持为0。
      */
     int map_mirror;
     int map_flip;

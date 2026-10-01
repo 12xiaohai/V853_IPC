@@ -525,9 +525,14 @@ int main(int argc, char *argv[])
     detection_overlay_config.target_height = encoder_config.height;
     detection_overlay_config.model_width = npu_config.width;
     detection_overlay_config.model_height = npu_config.height;
-    /* NPU画面做了180度校正，画框前需要反变换回原始编码方向。 */
-    detection_overlay_config.map_mirror = npu_config.mirror;
-    detection_overlay_config.map_flip = npu_config.flip;
+    /*
+     * 板端日志显示 SetVippMirror/Flip 最终配置的是共享 sensor：
+     *   [ISP] sensor set hflip:1, vflip:1
+     * 因此 VIPP 0 和 VIPP 8 会同时看到校正后的方向，画框坐标不能再做
+     * 一次 mirror/flip，否则会被重复旋转180度并跑到目标的对角。
+     */
+    detection_overlay_config.map_mirror = 0;
+    detection_overlay_config.map_flip = 0;
     detection_overlay_config.region_handle_base = 100U;
     detection_overlay_config.max_regions = 16U;
     detection_overlay_config.color = 0xffd01bU; /* 黄色，在深浅背景上都较醒目。 */
