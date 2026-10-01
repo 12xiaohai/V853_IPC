@@ -17,6 +17,10 @@ kept under `sdk`, so the project does not depend on its parent directory.
 8. MP4 recording and cyclic file management.
 9. NPU detection, line crossing, region intrusion, and audio alarm.
 
+The complete Stage 9 model-conversion explanation, branch merge gates, and
+implementation roadmap are documented in
+`word/阶段9_YOLOv8端侧部署与智能监控集成规划.md`.
+
 ## Current progress
 
 Stage 1 initializes the MPP system, establishes the global PTS base, handles
@@ -62,17 +66,21 @@ Board validation confirmed normal segment promotion, clean finalization, and
 removal of unused zero-byte pending segments. Stage 8.3 is complete; the
 configured ten-file deletion limit remains part of the long-duration test.
 Stage 9.1 adds an isolated AWNN/NPU single-frame self-test for `yolov8n.nb`.
-It accepts 320x320 NV21 input, decodes the fixed 84x2100 output tensor without
+It accepts 320x320 NV12 input, decodes the fixed 84x2100 output tensor without
 OpenCV, retains the COCO person class, and performs NMS. A generated black
 frame can validate model loading and NPU execution before the real-time VI
-path is connected.
+path is connected. The checked-in `yolov8-nv12` conversion workspace shows
+that the NBG model contains a 320x320 NV12 preprocessing node. Real-image,
+repeated-run, and existing-feature regression validation have passed on the
+isolated `feature/yolov8-edge-validation` branch. Stage 9.1 is complete and
+ready to merge; Stages 9.2 through 9.7 continue directly on `main`.
 
 Run the Stage 9.1 NPU self-test on the board:
 
 ```sh
 ./sample_strip --npu-self-test
 ./sample_strip --npu-self-test /mnt/UDISK/yolov8n.nb \
-    /mnt/UDISK/npu_test_320x320.nv21
+    /mnt/UDISK/npu_test_320x320.nv12
 ```
 Build in a Linux environment:
 

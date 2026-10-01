@@ -215,7 +215,7 @@ int main(int argc, char *argv[])
 
     /*
      * 阶段9.1提供独立NPU自检模式，不启动摄像头、编码、RTSP和录像链路。
-     * 用法：sample_strip --npu-self-test [model.nb] [input.nv21]
+     * 用法：sample_strip --npu-self-test [model.nb] [input.nv12]
      */
     if (argc > 1 && strcmp(argv[1], "--npu-self-test") == 0) {
         const char *model_path = argc > 2 ? argv[2] : "/lib/yolov8n.nb";

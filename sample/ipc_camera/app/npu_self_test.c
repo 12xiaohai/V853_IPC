@@ -37,11 +37,11 @@ static unsigned long long monotonic_time_us(void)
 }
 
 /*
- * 读取一张NV21测试图。文件可以包含紧凑可见高度，也可以已经带有32行对齐。
+ * 读取一张NV12测试图。文件可以包含紧凑可见高度，也可以已经带有32行对齐。
  * 紧凑文件会逐平面放入对齐缓冲，补齐区域保持黑色，不能直接整体memcpy，
  * 否则UV平面会落在错误偏移处。
  */
-static int load_nv21_input(const char *path,
+static int load_nv12_input(const char *path,
                            unsigned char *buffer,
                            size_t width,
                            size_t visible_height,
@@ -60,17 +60,17 @@ static int load_nv21_input(const char *path,
 
     file = fopen(path, "rb");
     if (file == NULL) {
-        aloge("[NPU] Open NV21 input failed: file=%s, errno=%d", path, errno);
+        aloge("[NPU] Open NV12 input failed: file=%s, errno=%d", path, errno);
         return -1;
     }
     if (fseek(file, 0L, SEEK_END) != 0) {
-        aloge("[NPU] Seek NV21 input failed: file=%s, errno=%d", path, errno);
+        aloge("[NPU] Seek NV12 input failed: file=%s, errno=%d", path, errno);
         fclose(file);
         return -1;
     }
     file_size = ftell(file);
     if (file_size < 0L || fseek(file, 0L, SEEK_SET) != 0) {
-        aloge("[NPU] Query NV21 input size failed: file=%s, errno=%d",
+        aloge("[NPU] Query NV12 input size failed: file=%s, errno=%d",
               path,
               errno);
         fclose(file);
@@ -81,12 +81,12 @@ static int load_nv21_input(const char *path,
         bytes_read = fread(buffer, 1U, aligned_size, file);
         fclose(file);
         if (bytes_read != aligned_size) {
-            aloge("[NPU] Read aligned NV21 input failed: expected=%zu, got=%zu",
+            aloge("[NPU] Read aligned NV12 input failed: expected=%zu, got=%zu",
                   aligned_size,
                   bytes_read);
             return -1;
         }
-        alogd("[NPU] Loaded aligned NV21 input: %s (%zu bytes)",
+        alogd("[NPU] Loaded aligned NV12 input: %s (%zu bytes)",
               path,
               aligned_size);
         return 0;
@@ -102,8 +102,8 @@ static int load_nv21_input(const char *path,
                             : 0U;
         fclose(file);
         if (y_bytes_read != tight_y_size || uv_bytes_read != tight_uv_size) {
-            aloge("[NPU] Read compact NV21 input failed: file=%s, "
-                  "Y=%zu/%zu, VU=%zu/%zu",
+            aloge("[NPU] Read compact NV12 input failed: file=%s, "
+                  "Y=%zu/%zu, UV=%zu/%zu",
                   path,
                   y_bytes_read,
                   tight_y_size,
@@ -111,7 +111,7 @@ static int load_nv21_input(const char *path,
                   tight_uv_size);
             return -1;
         }
-        alogd("[NPU] Loaded compact NV21 input: %s (%zu bytes -> %zu bytes)",
+        alogd("[NPU] Loaded compact NV12 input: %s (%zu bytes -> %zu bytes)",
               path,
               tight_size,
               aligned_size);
@@ -119,7 +119,7 @@ static int load_nv21_input(const char *path,
     }
 
     fclose(file);
-    aloge("[NPU] Invalid NV21 file size: file=%s, got=%ld, expected=%zu or %zu",
+    aloge("[NPU] Invalid NV12 file size: file=%s, got=%ld, expected=%zu or %zu",
           path,
           file_size,
           tight_size,
@@ -206,11 +206,11 @@ int npu_self_test_run(const char *model_path,
         return -1;
     }
 
-    /* NV21黑色：Y=16，交错VU=128。对齐补边也使用相同的黑色值。 */
+    /* NV12黑色：Y=16，交错UV=128。对齐补边也使用相同的黑色值。 */
     memset(input, 16, y_size);
     memset(input + y_size, 128, input_size - y_size);
     if (input_path != NULL && input_path[0] != '\0') {
-        if (load_nv21_input(input_path,
+        if (load_nv12_input(input_path,
                             input,
                             width,
                             visible_height,
@@ -218,7 +218,7 @@ int npu_self_test_run(const char *model_path,
             goto cleanup;
         }
     } else {
-        alogw("[NPU] No input file supplied; using a black NV21 frame");
+        alogw("[NPU] No input file supplied; using a black NV12 frame");
     }
 
     /* AWNN在一个进程中只初始化一次；阶段9.1自检结束后立即反初始化。 */
