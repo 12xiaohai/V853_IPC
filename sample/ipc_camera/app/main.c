@@ -14,6 +14,7 @@
 #include "mp4_recorder.h"
 #include "npu_detector.h"
 #include "detection_overlay.h"
+#include "line_crossing.h"
 #include "npu_self_test.h"
 #include "platform.h"
 #include "rtsp_stream.h"
@@ -202,6 +203,9 @@ int main(int argc, char *argv[])
     int lcd_detection_overlay_started = 0;
     DetectionOverlayContext *lcd_detection_overlay = NULL;
     DetectionOverlayConfig lcd_detection_overlay_config;
+    int line_crossing_started = 0;
+    LineCrossingContext *line_crossing = NULL;
+    LineCrossingConfig line_crossing_config;
     MediaConsumers media_consumers;
     const unsigned char *h264_header = NULL;
     size_t h264_header_size = 0U;
@@ -583,6 +587,38 @@ int main(int argc, char *argv[])
     }
     lcd_detection_overlay_started = 1;
 
+    /*
+     * 阶段9.4在320x320模型坐标中放置一条贯穿画面中央的竖直警戒线。
+     * A(160,0)->B(160,320)的正侧是画面左边，负侧是画面右边；因此
+     * positive-to-negative表示从左向右越线，反方向同理。
+     * 规则线程只读取NPU快照，不接触VI帧，也不会阻塞NPU和媒体通路。
+     */
+    memset(&line_crossing_config, 0, sizeof(line_crossing_config));
+    line_crossing_config.detector = npu_detector;
+    line_crossing_config.model_width = npu_config.width;
+    line_crossing_config.model_height = npu_config.height;
+    line_crossing_config.line_ax = npu_config.width / 2;
+    line_crossing_config.line_ay = 0;
+    line_crossing_config.line_bx = npu_config.width / 2;
+    line_crossing_config.line_by = npu_config.height;
+    line_crossing_config.hysteresis_pixels = 12U;
+    line_crossing_config.match_distance_pixels = 96U;
+    line_crossing_config.max_missing_snapshots = 5U;
+    line_crossing_config.cooldown_ms = 3000U;
+    line_crossing_config.poll_interval_ms = 50U;
+    line_crossing_config.max_tracks = 16U;
+
+    line_crossing = line_crossing_create(&line_crossing_config);
+    if (line_crossing == NULL) {
+        aloge("[Main] Line-crossing context allocation failed");
+        goto cleanup;
+    }
+    if (line_crossing_start(line_crossing) != 0) {
+        aloge("[Main] Line-crossing detector initialization failed");
+        goto cleanup;
+    }
+    line_crossing_started = 1;
+
     /* 主线程不做媒体处理，只等待信号；实际工作由各子线程完成。 */
     alogd("[Main] Application is running; press Ctrl+C to exit");
     while (g_exit_signal == 0) {
@@ -600,10 +636,18 @@ cleanup:
      */
 
     /*
-     * 两个ORL线程依赖NPU快照及VIPP 0/4，所以必须先停画框，
+     * 越线和两个ORL线程依赖NPU快照及VIPP 0/4，所以必须先停业务规则、
+     * 再停画框，
      * 再停NPU、VENC和预览VI。stop还会拆除所有region，避免下次
      * 启动遇到句柄已存在。
      */
+    if (line_crossing_started &&
+        line_crossing_stop(line_crossing) != 0) {
+        ret = EXIT_FAILURE;
+    }
+    line_crossing_destroy(line_crossing);
+    line_crossing = NULL;
+
     if (lcd_detection_overlay_started &&
         detection_overlay_stop(lcd_detection_overlay) != 0) {
         ret = EXIT_FAILURE;

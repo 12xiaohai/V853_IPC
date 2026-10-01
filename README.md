@@ -95,6 +95,13 @@ aligned correctly, and MP4 playback confirmed that recorded boxes are present.
 Board testing also confirmed that the VIPP 4 rectangles pass through GetFrame
 and G2D correctly and are visible on the portrait LCD.
 
+Stage 9.4 adds a lightweight line-crossing worker that consumes the same NPU
+snapshots. It tracks person bottom-center points with nearest-neighbor matching,
+uses a hysteresis band and per-track cooldown to suppress repeated events, and
+checks intersection with a finite directed line. The default line is vertical
+through the center of the 320x320 model image. Event callbacks are reserved for
+the later audio-alarm stage. The code is complete and awaits board validation.
+
 Run the Stage 9.1 NPU self-test on the board:
 
 ```sh
