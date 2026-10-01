@@ -13,6 +13,7 @@
 #include "log.h"
 #include "mp4_recorder.h"
 #include "npu_detector.h"
+#include "detection_overlay.h"
 #include "npu_self_test.h"
 #include "platform.h"
 #include "rtsp_stream.h"
@@ -195,6 +196,9 @@ int main(int argc, char *argv[])
     int npu_detector_started = 0;
     NpuDetectorContext *npu_detector = NULL;
     NpuDetectorConfig npu_config;
+    int detection_overlay_started = 0;
+    DetectionOverlayContext *detection_overlay = NULL;
+    DetectionOverlayConfig detection_overlay_config;
     MediaConsumers media_consumers;
     const unsigned char *h264_header = NULL;
     size_t h264_header_size = 0U;
@@ -507,6 +511,41 @@ int main(int argc, char *argv[])
     }
     npu_detector_started = 1;
 
+    /*
+     * 阶段9.3沿用原项目的MPP ORL_RGN画框方案。画框线程只读取NPU
+     * 最新快照，不持有NPU内部指针，也不会阻塞推理线程。框附着在编码
+     * VIPP 0上，因此H.264裸流、RTSP和MP4都会看到相同的检测框。
+     * 时间OSD使用RGN handle 0，检测框使用100..115，避免句柄冲突。
+     */
+    memset(&detection_overlay_config, 0, sizeof(detection_overlay_config));
+    detection_overlay_config.detector = npu_detector;
+    detection_overlay_config.target_vi_device = encoder_config.vi_device;
+    detection_overlay_config.target_vi_channel = encoder_config.vi_channel;
+    detection_overlay_config.target_width = encoder_config.width;
+    detection_overlay_config.target_height = encoder_config.height;
+    detection_overlay_config.model_width = npu_config.width;
+    detection_overlay_config.model_height = npu_config.height;
+    /* NPU画面做了180度校正，画框前需要反变换回原始编码方向。 */
+    detection_overlay_config.map_mirror = npu_config.mirror;
+    detection_overlay_config.map_flip = npu_config.flip;
+    detection_overlay_config.region_handle_base = 100U;
+    detection_overlay_config.max_regions = 16U;
+    detection_overlay_config.color = 0xffd01bU; /* 黄色，在深浅背景上都较醒目。 */
+    detection_overlay_config.thickness = 4U;
+    detection_overlay_config.poll_interval_ms = 50U;
+    detection_overlay_config.stale_timeout_ms = 500U;
+
+    detection_overlay = detection_overlay_create(&detection_overlay_config);
+    if (detection_overlay == NULL) {
+        aloge("[Main] Detection overlay context allocation failed");
+        goto cleanup;
+    }
+    if (detection_overlay_start(detection_overlay) != 0) {
+        aloge("[Main] Detection overlay initialization failed");
+        goto cleanup;
+    }
+    detection_overlay_started = 1;
+
     /* 主线程不做媒体处理，只等待信号；实际工作由各子线程完成。 */
     alogd("[Main] Application is running; press Ctrl+C to exit");
     while (g_exit_signal == 0) {
@@ -524,8 +563,19 @@ cleanup:
      */
 
     /*
-     * NPU 最后启动，因此最先停止。join 完成后才释放模型和 VIPP 8，确保推理线程
-     * 不会访问已经销毁的 VI 帧或 AWNN 上下文。
+     * ORL线程依赖NPU快照和编码VIPP 0，所以必须先停画框，再停NPU
+     * 和VENC。stop还会拆除所有region，避免下次启动遇到句柄已存在。
+     */
+    if (detection_overlay_started &&
+        detection_overlay_stop(detection_overlay) != 0) {
+        ret = EXIT_FAILURE;
+    }
+    detection_overlay_destroy(detection_overlay);
+    detection_overlay = NULL;
+
+    /*
+     * NPU线程停止后才释放模型和VIPP 8，确保推理线程不会访问
+     * 已经销毁的VI帧或AWNN上下文。
      */
     if (npu_detector_started && npu_detector_stop(npu_detector) != 0) {
         ret = EXIT_FAILURE;

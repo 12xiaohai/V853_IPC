@@ -82,9 +82,13 @@ early frames and enforce the configured 10 fps inference rate. Person detections
 source PTS, and inference latency are published as a mutex-protected snapshot
 for the later display and alarm-rule stages. Board testing has confirmed the
 real-time path, 180-degree VIPP 8 correction, roughly 10 fps inference, person
-detection, and clean shutdown. The remaining Stage 9.2 task is to regenerate
-the model with the course-prescribed INT16 hybrid output and verify that person
-confidence no longer collapses to the UINT8 step value 1.642.
+detection, variable confidence values from the INT16 hybrid output, and clean
+shutdown. Stage 9.2 is complete. Stage 9.3 adds a separate result-consumer
+thread that maps 320x320 detections back to the raw 1920x1080 orientation and
+uses the original project's MPP ORL regions on VIPP 0. The resulting person
+boxes are carried by the shared H.264 stream into RTSP and MP4 without blocking
+the NPU thread or conflicting with the VENC time overlay. Stage 9.3 code is
+complete and awaiting board validation.
 
 Run the Stage 9.1 NPU self-test on the board:
 
