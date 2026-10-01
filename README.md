@@ -61,17 +61,18 @@ active file, and removes the oldest managed recording when a limit is reached.
 Board validation confirmed normal segment promotion, clean finalization, and
 removal of unused zero-byte pending segments. Stage 8.3 is complete; the
 configured ten-file deletion limit remains part of the long-duration test.
-Stage 9.1 adds an isolated AWNN/NPU single-frame self-test for the original
-`1.1.0_Beta.nb` humanoid model. It accepts compact or 32-line-aligned NV21
-input and can use a generated black frame to validate model loading and NPU
-execution before the real-time VI path is connected.
+Stage 9.1 adds an isolated AWNN/NPU single-frame self-test for `yolov8n.nb`.
+It accepts 320x320 NV21 input, decodes the fixed 84x2100 output tensor without
+OpenCV, retains the COCO person class, and performs NMS. A generated black
+frame can validate model loading and NPU execution before the real-time VI
+path is connected.
 
 Run the Stage 9.1 NPU self-test on the board:
 
 ```sh
 ./sample_strip --npu-self-test
-./sample_strip --npu-self-test /lib/1.1.0_Beta.nb \
-    /mnt/UDISK/npu_test_320x180.nv21
+./sample_strip --npu-self-test /mnt/UDISK/yolov8n.nb \
+    /mnt/UDISK/npu_test_320x320.nv21
 ```
 Build in a Linux environment:
 

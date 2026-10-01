@@ -218,7 +218,7 @@ int main(int argc, char *argv[])
      * 用法：sample_strip --npu-self-test [model.nb] [input.nv21]
      */
     if (argc > 1 && strcmp(argv[1], "--npu-self-test") == 0) {
-        const char *model_path = argc > 2 ? argv[2] : "/lib/1.1.0_Beta.nb";
+        const char *model_path = argc > 2 ? argv[2] : "/lib/yolov8n.nb";
         const char *input_path = argc > 3 ? argv[3] : NULL;
 
         alogd("[Main] Running Stage 9.1 NPU single-frame self-test");

@@ -45,6 +45,13 @@ make_new_rootfs()
 	rm -f ${tmp_rootfs}/bin/${app_name} ${tmp_rootfs}/usr/bin/${app_name}
 	cp -rf ${sdk_out_dir}/${app_name}_strip ${tmp_rootfs}/usr/bin/${app_name} -v
 
+	# 阶段9：把随项目保存的YOLOv8 NPU模型安装到程序默认查找位置。
+	if [ ! -f ${sdk_dir}/models/yolov8n.nb ]; then
+		echo "not find ${sdk_dir}/models/yolov8n.nb"
+		return 2
+	fi
+	cp -f ${sdk_dir}/models/yolov8n.nb ${tmp_rootfs}/lib/yolov8n.nb -v
+
 	mkdir -p $sdk_tmp_dir
 
 	#make rootfs image

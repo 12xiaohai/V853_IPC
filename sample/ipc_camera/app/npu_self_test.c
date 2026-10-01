@@ -1,6 +1,7 @@
 #define _POSIX_C_SOURCE 200809L
 
 #include "npu_self_test.h"
+#include "yolov8_postprocess.h"
 
 #include <errno.h>
 #include <stdio.h>
@@ -13,7 +14,9 @@
 
 #define NPU_ALIGNMENT 32U
 #define NPU_MAX_DIMENSION 4096
-#define NPU_MAX_RESULTS 100
+#define YOLOV8_INPUT_WIDTH 320U
+#define YOLOV8_INPUT_HEIGHT 320U
+#define YOLOV8_NMS_THRESHOLD 0.45f
 
 /* 将模型要求的图像高度向上对齐到V853 NPU使用的32像素边界。 */
 static size_t align_up_32(size_t value)
@@ -130,8 +133,8 @@ int npu_self_test_run(const char *model_path,
 {
     awnn_info_t *model_info;
     Awnn_Context_t *network = NULL;
-    Awnn_Post_t post;
-    Awnn_Result_t result;
+    float **output_buffers;
+    YoloDetection detections[YOLOV8_MAX_DETECTIONS];
     unsigned char *input = NULL;
     unsigned char *input_planes[2] = {NULL, NULL};
     size_t width;
@@ -142,6 +145,7 @@ int npu_self_test_run(const char *model_path,
     unsigned long long start_us;
     unsigned long long end_us;
     int awnn_initialized = 0;
+    int detection_count;
     int index;
     int status = -1;
 
@@ -168,20 +172,31 @@ int npu_self_test_run(const char *model_path,
         return -1;
     }
 
-    width = (size_t)model_info->width;
-    visible_height = (size_t)model_info->height;
+    /* 本项目的YOLOv8n模型及2100候选框后处理固定使用320x320输入。 */
+    if ((size_t)model_info->width != YOLOV8_INPUT_WIDTH ||
+        (size_t)model_info->height != YOLOV8_INPUT_HEIGHT) {
+        aloge("[NPU] Unsupported YOLOv8 model tensor: got=%dx%d, "
+              "expected=%ux%u",
+              model_info->width,
+              model_info->height,
+              YOLOV8_INPUT_WIDTH,
+              YOLOV8_INPUT_HEIGHT);
+        return -1;
+    }
+    width = YOLOV8_INPUT_WIDTH;
+    visible_height = YOLOV8_INPUT_HEIGHT;
     aligned_height = align_up_32(visible_height);
     y_size = width * aligned_height;
     input_size = y_size * 3U / 2U;
 
-    alogd("[NPU] Model: name=%s, md5=%s, input=%zux%zu, aligned=%zux%zu, "
+    alogd("[NPU] Model: name=%s, md5=%s, visible=%zux%zu, tensor=%dx%d, "
           "memory=%u, recommended_threshold=%.3f",
           model_info->name != NULL ? model_info->name : "unknown",
           model_info->md5,
           width,
           visible_height,
-          width,
-          aligned_height,
+          model_info->width,
+          model_info->height,
           model_info->mem_size,
           model_info->thresh);
 
@@ -223,35 +238,39 @@ int npu_self_test_run(const char *model_path,
     awnn_run(network);
     end_us = monotonic_time_us();
 
-    memset(&post, 0, sizeof(post));
-    post.type = AWNN_DET_POST_HUMANOID_1;
-    post.width = (int)width;
-    post.height = (int)visible_height;
-    post.thresh = confidence_threshold > 0.0f
-                      ? confidence_threshold
-                      : model_info->thresh;
-    memset(&result, 0, sizeof(result));
-    awnn_det_post(network, &post, &result);
-    if (result.valid_cnt < 0 || result.valid_cnt > NPU_MAX_RESULTS) {
-        aloge("[NPU] Invalid result count returned by postprocess: %d",
-              result.valid_cnt);
+    output_buffers = awnn_get_output_buffers(network);
+    if (output_buffers == NULL || output_buffers[0] == NULL) {
+        aloge("[NPU] Get YOLOv8 output tensor failed");
+        goto cleanup;
+    }
+    memset(detections, 0, sizeof(detections));
+    detection_count = yolov8_decode_person(
+        output_buffers[0],
+        (int)width,
+        (int)visible_height,
+        confidence_threshold,
+        YOLOV8_NMS_THRESHOLD,
+        detections,
+        YOLOV8_MAX_DETECTIONS);
+    if (detection_count < 0) {
+        aloge("[NPU] Decode YOLOv8 output failed");
         goto cleanup;
     }
 
     alogd("[NPU] Single-frame inference succeeded: cost=%llu us, objects=%d, "
           "threshold=%.3f",
           end_us >= start_us ? end_us - start_us : 0U,
-          result.valid_cnt,
-          post.thresh);
-    for (index = 0; index < result.valid_cnt; ++index) {
+          detection_count,
+          confidence_threshold);
+    for (index = 0; index < detection_count; ++index) {
         alogd("[NPU] Result[%d]: label=%d, score=%.3f, box=(%d,%d)-(%d,%d)",
               index,
-              result.boxes[index].label,
-              result.boxes[index].score,
-              result.boxes[index].xmin,
-              result.boxes[index].ymin,
-              result.boxes[index].xmax,
-              result.boxes[index].ymax);
+              detections[index].label,
+              detections[index].score,
+              detections[index].xmin,
+              detections[index].ymin,
+              detections[index].xmax,
+              detections[index].ymax);
     }
     status = 0;
 
