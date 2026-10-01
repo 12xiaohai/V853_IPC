@@ -2,7 +2,7 @@
 # "category" allowed values: "image, frequency, undefined"
 # "database" allowed types: "TEXT, NPY, H5FS, SQLITE, LMDB, GENERATOR, ZIP"
 # "tensor_name" only support in H5FS database
-# "preproc_type" allowed types:"IMAGE_RGB, IMAGE_RGB888_PLANAR, IMAGE_RGB888_PLANAR_SEP, IMAGE_I420,
+# "preproc_type" allowed types:"IMAGE_RGB, IMAGE_RGB888_PLANAR, IMAGE_RGB888_PLANAR_SEP, IMAGE_I420, 
 # IMAGE_NV12, IMAGE_YUV444, IMAGE_GRAY, IMAGE_BGRA, TENSOR"
 input_meta:
   databases:
@@ -27,10 +27,10 @@ input_meta:
         - 0
         - 0
         - 0
-        scale: 0.0039
+        scale: 0.0039216
         preproc_node_params:
-          add_preproc_node: true
-          preproc_type: IMAGE_NV12
+          add_preproc_node: false
+          preproc_type: IMAGE_RGB
           preproc_image_size:
           - 320
           - 320

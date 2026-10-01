@@ -28,7 +28,7 @@ const static vsi_nn_preprocess_map_element_t* preprocess_map = NULL;
 /*-------------------------------------------
                   Functions
 -------------------------------------------*/
-#define INPUT_META_NUM 2
+#define INPUT_META_NUM 1
 static vnn_input_meta_t input_meta_tab[INPUT_META_NUM];
 static void _load_input_meta()
 {
@@ -38,25 +38,17 @@ static void _load_input_meta()
         memset(&input_meta_tab[i].image.preprocess,
             VNN_PREPRO_NONE, sizeof(int32_t) * VNN_PREPRO_NUM);
     }
-        /* lid: images_238_0 */
-    input_meta_tab[0].image.preprocess[0] = VNN_PREPRO_NONE;
-    input_meta_tab[0].image.preprocess[1] = VNN_PREPRO_NONE;
-    input_meta_tab[0].image.preprocess[2] = VNN_PREPRO_NONE;
-    input_meta_tab[0].image.reorder[0] = 0;
+        /* lid: images_238 */
+    input_meta_tab[0].image.preprocess[0] = VNN_PREPRO_REORDER;
+    input_meta_tab[0].image.preprocess[1] = VNN_PREPRO_MEAN;
+    input_meta_tab[0].image.preprocess[2] = VNN_PREPRO_SCALE;
+    input_meta_tab[0].image.reorder[0] = 2;
+    input_meta_tab[0].image.reorder[1] = 1;
+    input_meta_tab[0].image.reorder[2] = 0;
     input_meta_tab[0].image.mean[0] = 0;
     input_meta_tab[0].image.mean[1] = 0;
     input_meta_tab[0].image.mean[2] = 0;
-    input_meta_tab[0].image.scale = 0.0039;
-
-    /* lid: images_238_1 */
-    input_meta_tab[1].image.preprocess[0] = VNN_PREPRO_NONE;
-    input_meta_tab[1].image.preprocess[1] = VNN_PREPRO_NONE;
-    input_meta_tab[1].image.preprocess[2] = VNN_PREPRO_NONE;
-    input_meta_tab[1].image.reorder[0] = 0;
-    input_meta_tab[1].image.mean[0] = 0;
-    input_meta_tab[1].image.mean[1] = 0;
-    input_meta_tab[1].image.mean[2] = 0;
-    input_meta_tab[1].image.scale = 0.0039;
+    input_meta_tab[0].image.scale = 0.0039216;
 
 
 }

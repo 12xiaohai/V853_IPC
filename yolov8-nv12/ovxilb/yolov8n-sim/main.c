@@ -49,6 +49,7 @@ static void vnn_ReleaseNeuralNetwork
         vnn_ReleaseBufferImage();
     }
 }
+
 static vsi_status vnn_PostProcessNeuralNetwork
     (
     vsi_nn_graph_t *graph
@@ -56,7 +57,7 @@ static vsi_status vnn_PostProcessNeuralNetwork
 {
     return vnn_PostProcessYolov8nSimprj( graph );
 }
-/* End of the generated inference entry point. */
+
 #define BILLION                                 1000000000
 static uint64_t get_perf_count()
 {

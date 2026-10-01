@@ -21,34 +21,9 @@
 /*-------------------------------------------
                   Variable definitions
 -------------------------------------------*/
-/*pre process for lid: images_238*/
-vsi_nn_preprocess_source_layout_e source_layout_for_norm_tensor_1 = VSI_NN_SOURCE_LAYOUT_NCHW;
-vsi_nn_preprocess_source_format_e source_format_for_norm_tensor_1 = VSI_NN_SOURCE_FORMAT_IMAGE_NV12;
-vsi_nn_preprocess_image_size_t size_for_norm_tensor_1 = {320, 320, 3};
-
-vsi_nn_preprocess_image_resize_t resize_for_norm_tensor_1 = {320, 320, 3};
-int8_t reverse_channel_for_norm_tensor_1 = 1;
-float mean_and_scale_1[] = {0, 0, 0};
-vsi_nn_preprocess_mean_and_scale_t mean_and_scale_for_norm_tensor_1 = {mean_and_scale_1, 3, 0.0039};
-int32_t perm_1[] = {0, 1, 2, 3};
-vsi_nn_preprocess_permute_t permute_for_norm_tensor_1 = {perm_1, 4};
-vsi_nn_preprocess_base_t pre_process_for_norm_tensor_1[] =
-    {
-    {VSI_NN_PREPROCESS_SOURCE_LAYOUT, &source_layout_for_norm_tensor_1},
-    {VSI_NN_PREPROCESS_SET_SOURCE_FORMAT, &source_format_for_norm_tensor_1},
-
-    {VSI_NN_PREPROCESS_IMAGE_SIZE, &size_for_norm_tensor_1},
-    {VSI_NN_PREPROCESS_IMAGE_RESIZE_BILINEAR, &resize_for_norm_tensor_1},
-    {VSI_NN_PREPROCESS_REVERSE_CHANNEL, &reverse_channel_for_norm_tensor_1},
-    {VSI_NN_PREPROCESS_MEAN_AND_SCALE, &mean_and_scale_for_norm_tensor_1},
-    {VSI_NN_PREPROCESS_PERMUTE, &permute_for_norm_tensor_1},
-    };
 
 /*{graph_input_idx, preprocess}*/
-const static vsi_nn_preprocess_map_element_t preprocess_map[] =
-{
-{0, pre_process_for_norm_tensor_1, sizeof(pre_process_for_norm_tensor_1) / sizeof(vsi_nn_preprocess_base_t)},
-};
+const static vsi_nn_preprocess_map_element_t* preprocess_map = NULL;
 
 /*-------------------------------------------
                   Functions
@@ -63,17 +38,7 @@ static void _load_input_meta()
         memset(&input_meta_tab[i].image.preprocess,
             VNN_PREPRO_NONE, sizeof(int32_t) * VNN_PREPRO_NUM);
     }
-    if (vnn_UseImagePreprocessNode())
-    {
-    /* lid: images_238 */
-    input_meta_tab[0].image.preprocess[0] = VNN_PREPRO_NONE;
-    input_meta_tab[0].image.preprocess[1] = VNN_PREPRO_NONE;
-    input_meta_tab[0].image.preprocess[2] = VNN_PREPRO_NONE;
-
-    }
-    else
-    {
-    /* lid: images_238 */
+        /* lid: images_238 */
     input_meta_tab[0].image.preprocess[0] = VNN_PREPRO_REORDER;
     input_meta_tab[0].image.preprocess[1] = VNN_PREPRO_MEAN;
     input_meta_tab[0].image.preprocess[2] = VNN_PREPRO_SCALE;
@@ -83,9 +48,8 @@ static void _load_input_meta()
     input_meta_tab[0].image.mean[0] = 0;
     input_meta_tab[0].image.mean[1] = 0;
     input_meta_tab[0].image.mean[2] = 0;
-    input_meta_tab[0].image.scale = 0.0039;
+    input_meta_tab[0].image.scale = 0.0039216;
 
-    }
 
 }
 

@@ -198,6 +198,11 @@ int main(int argc, char *argv[])
     MediaConsumers media_consumers;
     const unsigned char *h264_header = NULL;
     size_t h264_header_size = 0U;
+    /*
+     * 默认加载开发板系统模型。调试新NBG时可用--npu-model指向
+     * UDISK上的候选文件，不必覆盖这个已知可启动的回退版本。
+     */
+    const char *realtime_npu_model_path = "/lib/yolov8n.nb";
 
     memset(&media_consumers, 0, sizeof(media_consumers));
 
@@ -230,6 +235,24 @@ int main(int argc, char *argv[])
                   ? EXIT_SUCCESS
                   : EXIT_FAILURE;
         goto cleanup;
+    }
+
+    /*
+     * 正常监控模式的候选模型参数：
+     *   sample_strip --npu-model /mnt/UDISK/yolov8n_hybrid_i16.nb
+     * 只接受完整的“选项+路径”，避免参数拼错后悄悄回退到旧模型。
+     */
+    if (argc > 1) {
+        if (argc == 3 && strcmp(argv[1], "--npu-model") == 0 &&
+            argv[2][0] != '\0') {
+            realtime_npu_model_path = argv[2];
+        } else {
+            aloge("[Main] Invalid arguments");
+            aloge("Usage: %s [--npu-model MODEL.nb]", argv[0]);
+            aloge("       %s --npu-self-test [MODEL.nb] [INPUT.nv12]",
+                  argv[0]);
+            goto cleanup;
+        }
     }
 
     alogd("======================================================");
@@ -464,7 +487,7 @@ int main(int argc, char *argv[])
      */
     npu_config.mirror = 1;
     npu_config.flip = 1;
-    npu_config.model_path = "/lib/yolov8n.nb";
+    npu_config.model_path = realtime_npu_model_path;
     /* 阶段9.2诊断期间保存一张NPU真实输入；确认检测正常后可改为NULL。 */
     npu_config.debug_dump_path = "/mnt/UDISK/npu_realtime_320x320.nv12";
     /* 延迟到约第5秒抓图，给单人测试留出走进摄像头画面的时间。 */

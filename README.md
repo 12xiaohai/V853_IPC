@@ -80,9 +80,11 @@ runs the YOLOv8 network continuously in one worker thread. Because a secondary
 VIPP may still deliver the sensor's 20 fps stream, VI PTS is also used to skip
 early frames and enforce the configured 10 fps inference rate. Person detections,
 source PTS, and inference latency are published as a mutex-protected snapshot
-for the later display and alarm-rule stages. The implementation has passed
-local syntax checks and is awaiting full Linux cross-build and board runtime
-validation.
+for the later display and alarm-rule stages. Board testing has confirmed the
+real-time path, 180-degree VIPP 8 correction, roughly 10 fps inference, person
+detection, and clean shutdown. The remaining Stage 9.2 task is to regenerate
+the model with the course-prescribed INT16 hybrid output and verify that person
+confidence no longer collapses to the UINT8 step value 1.642.
 
 Run the Stage 9.1 NPU self-test on the board:
 
@@ -90,6 +92,9 @@ Run the Stage 9.1 NPU self-test on the board:
 ./sample_strip --npu-self-test
 ./sample_strip --npu-self-test /mnt/UDISK/yolov8n.nb \
     /mnt/UDISK/npu_test_320x320.nv12
+
+# 正常监控模式临时加载候选NBG，不覆盖/lib/yolov8n.nb
+./sample_strip --npu-model /mnt/UDISK/yolov8n_hybrid_i16.nb
 ```
 Build in a Linux environment:
 

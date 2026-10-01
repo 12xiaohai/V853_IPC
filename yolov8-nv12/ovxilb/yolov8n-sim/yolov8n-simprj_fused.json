@@ -32,10 +32,10 @@
                                 0,
                                 0
                             ],
-                            "scale": 0.0039,
+                            "scale": 0.0039216,
                             "preproc_node_params": {
-                                "add_preproc_node": true,
-                                "preproc_type": "IMAGE_NV12",
+                                "add_preproc_node": false,
+                                "preproc_type": "IMAGE_RGB",
                                 "preproc_image_size": [
                                     320,
                                     320

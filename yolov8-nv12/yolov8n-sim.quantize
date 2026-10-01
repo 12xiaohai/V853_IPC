@@ -2,2579 +2,2580 @@
 version: 2
 quantize_parameters:
   '@attach_Concat_/model.22/Concat_5/out0_0:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 418.78179931640625
+    max_value: 418.75689697265625
     min_value: 0.0
-    scale: 1.6422815322875977
-    zero_point: 0
+    scale: 1.6421838998794556
+    zero_point: -128
   '@Concat_/model.22/Concat_5_1:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 418.78179931640625
+    max_value: 418.75689697265625
     min_value: 0.0
-    scale: 1.6422815322875977
-    zero_point: 0
+    scale: 1.6421838998794556
+    zero_point: -128
   '@Mul_/model.22/Mul_2_2:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 418.78179931640625
+    max_value: 418.75689697265625
     min_value: 0.0
-    scale: 1.6422815322875977
-    zero_point: 0
+    scale: 1.6421838998794556
+    zero_point: -128
   '@Sigmoid_/model.22/Sigmoid_3:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 418.78179931640625
+    max_value: 418.75689697265625
     min_value: 0.0
-    scale: 1.6422815322875977
-    zero_point: 0
+    scale: 1.6421838998794556
+    zero_point: -128
   '@Concat_/model.22/Concat_4_4:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 39.555355072021484
+    max_value: 39.555580139160156
     min_value: 0.0
-    scale: 0.15511904656887054
-    zero_point: 0
+    scale: 0.15511992573738098
+    zero_point: -128
   '@Initializer_/model.22/Constant_12_output_0_5:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 32.0
     min_value: 0.0
     scale: 0.125490203499794
-    zero_point: 0
+    zero_point: -128
   '@Div_/model.22/Div_1_6:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 39.555355072021484
+    max_value: 39.555580139160156
     min_value: 0.0
-    scale: 0.15511904656887054
-    zero_point: 0
+    scale: 0.15511992573738098
+    zero_point: -128
   '@Sub_/model.22/Sub_1_7:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 39.555355072021484
+    max_value: 39.555580139160156
     min_value: 0.0
-    scale: 0.15511904656887054
-    zero_point: 0
+    scale: 0.15511992573738098
+    zero_point: -128
   '@Add_/model.22/Add_2_8:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 79.11071014404297
+    max_value: 79.11116027832031
     min_value: 0.0
-    scale: 0.3102380931377411
-    zero_point: 0
+    scale: 0.31023985147476196
+    zero_point: -128
   '@Add_/model.22/Add_1_10:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 42.41886520385742
+    max_value: 42.41808319091797
     min_value: 0.0
-    scale: 0.16634848713874817
-    zero_point: 0
+    scale: 0.16634541749954224
+    zero_point: -128
   '@Sub_/model.22/Sub_11:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 39.134918212890625
-    min_value: -2.2935428619384766
-    scale: 0.16246454417705536
-    zero_point: 14
+    max_value: 39.13535690307617
+    min_value: -2.2935009002685547
+    scale: 0.1624661087989807
+    zero_point: -114
   '@Slice_/model.22/Slice_12:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 13.47097110748291
+    max_value: 13.46902084350586
     min_value: 0.0
-    scale: 0.05282733589410782
-    zero_point: 0
+    scale: 0.052819687873125076
+    zero_point: -128
   '@Reshape_/model.22/dfl/Reshape_1_13:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 13.47097110748291
+    max_value: 13.46902084350586
     min_value: 0.0
-    scale: 0.05282733589410782
-    zero_point: 0
+    scale: 0.052819687873125076
+    zero_point: -128
   '@Slice_/model.22/Slice_1_15:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 13.47097110748291
+    max_value: 13.46902084350586
     min_value: 0.0
-    scale: 0.05282733589410782
-    zero_point: 0
+    scale: 0.052819687873125076
+    zero_point: -128
   '@Conv_/model.22/dfl/conv/Conv_17:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 13.47097110748291
+    max_value: 13.46902084350586
     min_value: 0.0
-    scale: 0.05282733589410782
-    zero_point: 0
+    scale: 0.052819687873125076
+    zero_point: -128
   '@Softmax_/model.22/dfl/Softmax_18:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 0.8163045644760132
+    max_value: 0.8165706396102905
     min_value: 0.0
-    scale: 0.003201194340363145
-    zero_point: 0
+    scale: 0.0032022378873080015
+    zero_point: -128
   '@Reshape_/model.22/dfl/Reshape_20:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 11.29991626739502
-    min_value: -37.094139099121094
-    scale: 0.1897806078195572
-    zero_point: 195
+    max_value: 11.297074317932129
+    min_value: -37.11203384399414
+    scale: 0.18983963131904602
+    zero_point: 67
   '@Split_/model.22/Split_21:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 11.29991626739502
-    min_value: -37.094139099121094
-    scale: 0.1897806078195572
-    zero_point: 195
+    max_value: 11.297074317932129
+    min_value: -37.11203384399414
+    scale: 0.18983963131904602
+    zero_point: 67
   '@Split_/model.22/Split_21:out1':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 11.29991626739502
-    min_value: -37.094139099121094
-    scale: 0.1897806078195572
-    zero_point: 195
+    max_value: 11.297074317932129
+    min_value: -37.11203384399414
+    scale: 0.18983963131904602
+    zero_point: 67
   '@Concat_/model.22/Concat_3_22:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 11.29991626739502
-    min_value: -37.094139099121094
-    scale: 0.1897806078195572
-    zero_point: 195
+    max_value: 11.297074317932129
+    min_value: -37.11203384399414
+    scale: 0.18983963131904602
+    zero_point: 67
   '@Reshape_/model.22/Reshape_23:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 11.29991626739502
-    min_value: -37.094139099121094
-    scale: 0.1897806078195572
-    zero_point: 195
+    max_value: 11.297074317932129
+    min_value: -37.11203384399414
+    scale: 0.18983963131904602
+    zero_point: 67
   '@Reshape_/model.22/Reshape_1_24:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 11.29991626739502
-    min_value: -37.094139099121094
-    scale: 0.1897806078195572
-    zero_point: 195
+    max_value: 11.297074317932129
+    min_value: -37.11203384399414
+    scale: 0.18983963131904602
+    zero_point: 67
   '@Reshape_/model.22/Reshape_2_25:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 11.29991626739502
-    min_value: -37.094139099121094
-    scale: 0.1897806078195572
-    zero_point: 195
+    max_value: 11.297074317932129
+    min_value: -37.11203384399414
+    scale: 0.18983963131904602
+    zero_point: 67
   '@Concat_/model.22/Concat_26:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 11.29991626739502
-    min_value: -37.094139099121094
-    scale: 0.1897806078195572
-    zero_point: 195
+    max_value: 11.297074317932129
+    min_value: -37.11203384399414
+    scale: 0.18983963131904602
+    zero_point: 67
   '@Concat_/model.22/Concat_1_27:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 11.29991626739502
-    min_value: -37.094139099121094
-    scale: 0.1897806078195572
-    zero_point: 195
+    max_value: 11.297074317932129
+    min_value: -37.11203384399414
+    scale: 0.18983963131904602
+    zero_point: 67
   '@Concat_/model.22/Concat_2_28:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 11.29991626739502
-    min_value: -37.094139099121094
-    scale: 0.1897806078195572
-    zero_point: 195
+    max_value: 11.297074317932129
+    min_value: -37.11203384399414
+    scale: 0.18983963131904602
+    zero_point: 67
   '@Conv_/model.22/cv2.0/cv2.0.2/Conv_29:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 11.29991626739502
-    min_value: -37.094139099121094
-    scale: 0.1897806078195572
-    zero_point: 195
+    max_value: 11.297074317932129
+    min_value: -37.11203384399414
+    scale: 0.18983963131904602
+    zero_point: 67
   '@Conv_/model.22/cv3.0/cv3.0.2/Conv_30:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 11.29991626739502
-    min_value: -37.094139099121094
-    scale: 0.1897806078195572
-    zero_point: 195
+    max_value: 11.297074317932129
+    min_value: -37.11203384399414
+    scale: 0.18983963131904602
+    zero_point: 67
   '@Conv_/model.22/cv2.1/cv2.1.2/Conv_31:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 11.29991626739502
-    min_value: -37.094139099121094
-    scale: 0.1897806078195572
-    zero_point: 195
+    max_value: 11.297074317932129
+    min_value: -37.11203384399414
+    scale: 0.18983963131904602
+    zero_point: 67
   '@Conv_/model.22/cv3.1/cv3.1.2/Conv_32:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 11.29991626739502
-    min_value: -37.094139099121094
-    scale: 0.1897806078195572
-    zero_point: 195
+    max_value: 11.297074317932129
+    min_value: -37.11203384399414
+    scale: 0.18983963131904602
+    zero_point: 67
   '@Conv_/model.22/cv2.2/cv2.2.2/Conv_33:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 11.29991626739502
-    min_value: -37.094139099121094
-    scale: 0.1897806078195572
-    zero_point: 195
+    max_value: 11.297074317932129
+    min_value: -37.11203384399414
+    scale: 0.18983963131904602
+    zero_point: 67
   '@Conv_/model.22/cv3.2/cv3.2.2/Conv_34:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 11.29991626739502
-    min_value: -37.094139099121094
-    scale: 0.1897806078195572
-    zero_point: 195
+    max_value: 11.297074317932129
+    min_value: -37.11203384399414
+    scale: 0.18983963131904602
+    zero_point: 67
   '@Conv_/model.22/cv2.0/cv2.0.1/conv/Conv_41:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 25.496503829956055
-    min_value: -14.480249404907227
-    scale: 0.15677158534526825
-    zero_point: 92
+    max_value: 25.508453369140625
+    min_value: -14.489509582519531
+    scale: 0.1568547636270523
+    zero_point: -36
   '@Conv_/model.22/cv3.0/cv3.0.1/conv/Conv_43:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 13.646474838256836
-    min_value: -26.580278396606445
-    scale: 0.15775197744369507
-    zero_point: 168
+    max_value: 13.653851509094238
+    min_value: -26.54428482055664
+    scale: 0.157639741897583
+    zero_point: 40
   '@Conv_/model.22/cv2.1/cv2.1.1/conv/Conv_45:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 32.69790267944336
-    min_value: -11.250988960266113
-    scale: 0.17234858870506287
-    zero_point: 65
+    max_value: 32.712772369384766
+    min_value: -11.227985382080078
+    scale: 0.17231670022010803
+    zero_point: -63
   '@Conv_/model.22/cv3.1/cv3.1.1/conv/Conv_47:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 54.65968704223633
-    min_value: -50.227352142333984
-    scale: 0.4113217294216156
-    zero_point: 122
+    max_value: 54.67900466918945
+    min_value: -50.202552795410156
+    scale: 0.4113002419471741
+    zero_point: -6
   '@Conv_/model.22/cv2.2/cv2.2.1/conv/Conv_49:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 15.954282760620117
-    min_value: -10.92655086517334
-    scale: 0.10541503131389618
-    zero_point: 104
+    max_value: 15.969165802001953
+    min_value: -10.931791305541992
+    scale: 0.1054939478635788
+    zero_point: -24
   '@Conv_/model.22/cv3.2/cv3.2.1/conv/Conv_51:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 61.84547805786133
-    min_value: -52.74205017089844
-    scale: 0.4493628442287445
-    zero_point: 117
+    max_value: 61.867305755615234
+    min_value: -52.80704116821289
+    scale: 0.4497033357620239
+    zero_point: -11
   '@Conv_/model.22/cv2.0/cv2.0.0/conv/Conv_65:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 4.3173699378967285
-    min_value: -7.1911468505859375
-    scale: 0.045131437480449677
-    zero_point: 159
+    max_value: 4.321784019470215
+    min_value: -7.18607234954834
+    scale: 0.045128848403692245
+    zero_point: 31
   '@Conv_/model.22/cv3.0/cv3.0.0/conv/Conv_67:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 2.935927629470825
-    min_value: -6.226485252380371
-    scale: 0.03593102842569351
-    zero_point: 173
+    max_value: 2.93503999710083
+    min_value: -6.224188804626465
+    scale: 0.035918544977903366
+    zero_point: 45
   '@Conv_/model.22/cv2.1/cv2.1.0/conv/Conv_69:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 5.819308280944824
-    min_value: -10.534461975097656
-    scale: 0.0641324371099472
-    zero_point: 164
+    max_value: 5.82097053527832
+    min_value: -10.534425735473633
+    scale: 0.06413880735635757
+    zero_point: 36
   '@Conv_/model.22/cv3.1/cv3.1.0/conv/Conv_71:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 4.633171081542969
-    min_value: -6.4331374168396
-    scale: 0.043397288769483566
-    zero_point: 148
+    max_value: 4.632213592529297
+    min_value: -6.4263739585876465
+    scale: 0.043367013335227966
+    zero_point: 20
   '@Conv_/model.22/cv2.2/cv2.2.0/conv/Conv_73:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 7.1214704513549805
-    min_value: -9.915285110473633
-    scale: 0.06681080162525177
-    zero_point: 148
+    max_value: 7.124171733856201
+    min_value: -9.916194915771484
+    scale: 0.06682497262954712
+    zero_point: 20
   '@Conv_/model.22/cv3.2/cv3.2.0/conv/Conv_75:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 7.095136642456055
-    min_value: -17.179244995117188
-    scale: 0.09519365429878235
-    zero_point: 180
+    max_value: 7.098854064941406
+    min_value: -17.18657684326172
+    scale: 0.09523698687553406
+    zero_point: 52
   '@Conv_/model.15/cv2/conv/Conv_77:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 3.350606918334961
-    min_value: -5.788366794586182
-    scale: 0.03583911061286926
-    zero_point: 162
+    max_value: 3.3511810302734375
+    min_value: -5.7876057624816895
+    scale: 0.035838376730680466
+    zero_point: 33
   '@Concat_/model.15/Concat_78:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 4.6806511878967285
+    max_value: 4.6813740730285645
     min_value: -0.27846458554267883
-    scale: 0.019447512924671173
-    zero_point: 14
+    scale: 0.019450347870588303
+    zero_point: -114
   '@Conv_/model.18/cv2/conv/Conv_79:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 3.266314744949341
-    min_value: -7.685562610626221
-    scale: 0.042948540300130844
-    zero_point: 179
+    max_value: 3.267374038696289
+    min_value: -7.691783905029297
+    scale: 0.042977090924978256
+    zero_point: 51
   '@Concat_/model.18/Concat_80:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 7.876203536987305
+    max_value: 7.87684965133667
     min_value: -0.27846458554267883
-    scale: 0.031979091465473175
-    zero_point: 9
+    scale: 0.03198162466287613
+    zero_point: -119
   '@Conv_/model.21/cv2/conv/Conv_81:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 6.654323101043701
-    min_value: -17.057336807250977
-    scale: 0.09298690408468246
-    zero_point: 183
+    max_value: 6.655763149261475
+    min_value: -17.04865074157715
+    scale: 0.0929584875702858
+    zero_point: 55
   '@Concat_/model.21/Concat_82:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 6.566067218780518
+    max_value: 6.5651116371154785
     min_value: -0.27846458554267883
-    scale: 0.02684130147099495
-    zero_point: 10
+    scale: 0.026837553828954697
+    zero_point: -118
   '@Conv_/model.15/m.0/cv2/conv/Conv_86:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 4.72228479385376
-    min_value: -4.41163444519043
-    scale: 0.03581928834319115
-    zero_point: 123
+    max_value: 4.722984790802002
+    min_value: -4.412074565887451
+    scale: 0.0358237624168396
+    zero_point: -5
   '@Conv_/model.18/m.0/cv2/conv/Conv_88:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 7.879184722900391
-    min_value: -6.40541934967041
-    scale: 0.056018054485321045
-    zero_point: 114
+    max_value: 7.879829406738281
+    min_value: -6.410196781158447
+    scale: 0.05603931471705437
+    zero_point: -14
   '@Conv_/model.21/m.0/cv2/conv/Conv_90:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 6.575222969055176
-    min_value: -9.44503402709961
-    scale: 0.06282453238964081
-    zero_point: 150
+    max_value: 6.574275016784668
+    min_value: -9.449136734008789
+    scale: 0.0628369078040123
+    zero_point: 22
   '@Conv_/model.15/m.0/cv1/conv/Conv_98:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 3.0708677768707275
-    min_value: -4.243292808532715
-    scale: 0.028682982549071312
-    zero_point: 148
+    max_value: 3.0708444118499756
+    min_value: -4.244441986083984
+    scale: 0.02868739888072014
+    zero_point: 20
   '@Split_/model.15/Split_99:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 4.6806511878967285
+    max_value: 4.6813740730285645
     min_value: -0.27846458554267883
-    scale: 0.019447512924671173
-    zero_point: 14
+    scale: 0.019450347870588303
+    zero_point: -114
   '@Split_/model.15/Split_99:out1':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 4.6806511878967285
+    max_value: 4.6813740730285645
     min_value: -0.27846458554267883
-    scale: 0.019447512924671173
-    zero_point: 14
+    scale: 0.019450347870588303
+    zero_point: -114
   '@Conv_/model.18/m.0/cv1/conv/Conv_100:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 2.6149206161499023
-    min_value: -5.608891487121582
-    scale: 0.03225024417042732
-    zero_point: 174
+    max_value: 2.6151230335235596
+    min_value: -5.6102375984191895
+    scale: 0.032256316393613815
+    zero_point: 46
   '@Split_/model.18/Split_101:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 7.876203536987305
+    max_value: 7.87684965133667
     min_value: -0.27846458554267883
-    scale: 0.031979091465473175
-    zero_point: 9
+    scale: 0.03198162466287613
+    zero_point: -119
   '@Split_/model.18/Split_101:out1':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 7.876203536987305
+    max_value: 7.87684965133667
     min_value: -0.27846458554267883
-    scale: 0.031979091465473175
-    zero_point: 9
+    scale: 0.03198162466287613
+    zero_point: -119
   '@Conv_/model.21/m.0/cv1/conv/Conv_102:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 4.112570285797119
-    min_value: -6.462583065032959
-    scale: 0.04147119075059891
-    zero_point: 156
+    max_value: 4.1129560470581055
+    min_value: -6.4581098556518555
+    scale: 0.041455160826444626
+    zero_point: 28
   '@Split_/model.21/Split_103:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 6.566067218780518
+    max_value: 6.5651116371154785
     min_value: -0.27846458554267883
-    scale: 0.02684130147099495
-    zero_point: 10
+    scale: 0.026837553828954697
+    zero_point: -118
   '@Split_/model.21/Split_103:out1':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 6.566067218780518
+    max_value: 6.5651116371154785
     min_value: -0.27846458554267883
-    scale: 0.02684130147099495
-    zero_point: 10
+    scale: 0.026837553828954697
+    zero_point: -118
   '@Conv_/model.15/cv1/conv/Conv_107:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 3.1064600944519043
-    min_value: -6.350222587585449
-    scale: 0.03708502650260925
-    zero_point: 171
+    max_value: 3.106257438659668
+    min_value: -6.347380638122559
+    scale: 0.03707309067249298
+    zero_point: 43
   '@Conv_/model.18/cv1/conv/Conv_109:out0':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 4.475865364074707
-    min_value: -5.383117198944092
-    scale: 0.03866267576813698
-    zero_point: 139
-  '@Conv_/model.21/cv1/conv/Conv_111:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 4.035032272338867
-    min_value: -6.447583198547363
-    scale: 0.04110829532146454
-    zero_point: 157
-  '@Concat_/model.14/Concat_113:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 5.866823196411133
-    min_value: -0.27846458554267883
-    scale: 0.024099169299006462
-    zero_point: 12
-  '@Concat_/model.17/Concat_115:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 5.866823196411133
-    min_value: -0.27846458554267883
-    scale: 0.024099169299006462
-    zero_point: 12
-  '@Concat_/model.20/Concat_117:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 5.240940093994141
-    min_value: -0.27846458554267883
-    scale: 0.021644724532961845
-    zero_point: 13
-  '@Resize_/model.13/Resize_119:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 5.866823196411133
-    min_value: -0.27846458554267883
-    scale: 0.024099169299006462
-    zero_point: 12
-  '@Conv_/model.4/cv2/conv/Conv_120:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 5.8831682205200195
-    min_value: -6.043948173522949
-    scale: 0.04677300527691841
-    zero_point: 129
-  '@Conv_/model.12/cv2/conv/Conv_123:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 3.857797145843506
-    min_value: -5.619294166564941
-    scale: 0.03716506063938141
-    zero_point: 151
-  '@Conv_/model.9/cv2/conv/Conv_126:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 5.2679524421691895
-    min_value: -7.345982551574707
-    scale: 0.049466412514448166
-    zero_point: 149
-  '@Concat_/model.9/Concat_128:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 5.726702690124512
-    min_value: -0.27841320633888245
-    scale: 0.023549474775791168
-    zero_point: 12
-  '@Concat_/model.4/Concat_129:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 7.742403030395508
-    min_value: -0.8348144292831421
-    scale: 0.033636145293712616
-    zero_point: 25
-  '@Add_/model.4/m.1/Add_130:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 7.742403030395508
-    min_value: -0.8348144292831421
-    scale: 0.033636145293712616
-    zero_point: 25
-  '@Conv_/model.16/conv/Conv_131:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 3.7762696743011475
-    min_value: -5.9569172859191895
-    scale: 0.03816935792565346
-    zero_point: 156
-  '@Concat_/model.12/Concat_133:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 5.876299858093262
-    min_value: -0.27846458554267883
-    scale: 0.024136332795023918
-    zero_point: 12
-  '@Conv_/model.19/conv/Conv_135:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 3.787679672241211
-    min_value: -8.505456924438477
-    scale: 0.04820837825536728
-    zero_point: 176
-  '@MaxPool_/model.9/m/MaxPool_138:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 5.726702690124512
-    min_value: -0.27841320633888245
-    scale: 0.023549474775791168
-    zero_point: 12
-  '@MaxPool_/model.9/m_1/MaxPool_139:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 5.726702690124512
-    min_value: -0.27841320633888245
-    scale: 0.023549474775791168
-    zero_point: 12
-  '@MaxPool_/model.9/m_2/MaxPool_140:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 5.726702690124512
-    min_value: -0.27841320633888245
-    scale: 0.023549474775791168
-    zero_point: 12
-  '@Add_/model.4/m.0/Add_141:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 7.742403030395508
-    min_value: -0.8348144292831421
-    scale: 0.033636145293712616
-    zero_point: 25
-  '@Conv_/model.4/m.1/cv2/conv/Conv_145:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 5.546855926513672
-    min_value: -8.732711791992188
-    scale: 0.0559983029961586
-    zero_point: 156
-  '@Conv_/model.12/m.0/cv2/conv/Conv_146:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 4.554772853851318
-    min_value: -4.848885536193848
-    scale: 0.036877088248729706
-    zero_point: 131
-  '@Conv_/model.9/cv1/conv/Conv_150:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 5.745019912719727
-    min_value: -2.945040464401245
-    scale: 0.03407866880297661
-    zero_point: 86
-  '@Conv_/model.8/cv2/conv/Conv_154:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 5.906217575073242
-    min_value: -9.853255271911621
-    scale: 0.06180185452103615
-    zero_point: 159
-  '@Conv_/model.4/m.0/cv2/conv/Conv_155:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 3.7341551780700684
-    min_value: -5.263784408569336
-    scale: 0.03528603911399841
-    zero_point: 149
-  '@Conv_/model.12/m.0/cv1/conv/Conv_159:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 3.298720359802246
-    min_value: -5.070046424865723
-    scale: 0.03281869366765022
-    zero_point: 154
-  '@Split_/model.12/Split_160:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 5.876299858093262
-    min_value: -0.27846458554267883
-    scale: 0.024136332795023918
-    zero_point: 12
-  '@Split_/model.12/Split_160:out1':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 5.876299858093262
-    min_value: -0.27846458554267883
-    scale: 0.024136332795023918
-    zero_point: 12
-  '@Concat_/model.8/Concat_162:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 9.115667343139648
-    min_value: -0.55684494972229
-    scale: 0.0379314199090004
-    zero_point: 15
-  '@Conv_/model.4/m.0/cv1/conv/Conv_163:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 3.7344112396240234
-    min_value: -4.765367031097412
-    scale: 0.0333324670791626
-    zero_point: 143
-  '@Conv_/model.4/m.1/cv1/conv/Conv_165:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 3.13370680809021
-    min_value: -4.85810661315918
-    scale: 0.03134044632315636
-    zero_point: 155
-  '@Conv_/model.12/cv1/conv/Conv_167:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 5.892518520355225
-    min_value: -5.97359037399292
-    scale: 0.04653375968337059
-    zero_point: 128
-  '@Add_/model.8/m.0/Add_169:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 9.115667343139648
-    min_value: -0.55684494972229
-    scale: 0.0379314199090004
-    zero_point: 15
-  '@Split_/model.4/Split_170:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 7.742403030395508
-    min_value: -0.8348144292831421
-    scale: 0.033636145293712616
-    zero_point: 25
-  '@Split_/model.4/Split_170:out1':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 7.742403030395508
-    min_value: -0.8348144292831421
-    scale: 0.033636145293712616
-    zero_point: 25
-  '@Conv_/model.4/cv1/conv/Conv_173:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 5.402717113494873
-    min_value: -7.887424945831299
-    scale: 0.0521182045340538
-    zero_point: 151
-  '@Concat_/model.11/Concat_174:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 5.240940093994141
-    min_value: -0.27846458554267883
-    scale: 0.021644724532961845
-    zero_point: 13
-  '@Resize_/model.10/Resize_179:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 5.240940093994141
-    min_value: -0.27846458554267883
-    scale: 0.021644724532961845
-    zero_point: 13
-  '@Conv_/model.6/cv2/conv/Conv_180:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 4.589684009552002
-    min_value: -5.432621955871582
-    scale: 0.03930316120386124
-    zero_point: 138
-  '@Conv_/model.8/m.0/cv2/conv/Conv_182:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 9.332436561584473
-    min_value: -11.912859916687012
-    scale: 0.08331488817930222
-    zero_point: 143
-  '@Conv_/model.3/conv/Conv_184:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 5.467759609222412
-    min_value: -7.705326557159424
-    scale: 0.05165916308760643
-    zero_point: 149
-  '@Concat_/model.6/Concat_187:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 9.555018424987793
-    min_value: -0.8347666263580322
-    scale: 0.04074425250291824
-    zero_point: 20
-  '@Add_/model.6/m.1/Add_188:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 9.555018424987793
-    min_value: -0.8347666263580322
-    scale: 0.04074425250291824
-    zero_point: 20
-  '@Conv_/model.8/m.0/cv1/conv/Conv_189:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 7.686681747436523
-    min_value: -7.879256248474121
-    scale: 0.061042893677949905
-    zero_point: 129
-  '@Conv_/model.2/cv2/conv/Conv_191:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 6.632437229156494
-    min_value: -20.21592903137207
-    scale: 0.10528770834207535
-    zero_point: 192
-  '@Add_/model.6/m.0/Add_193:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 9.555018424987793
-    min_value: -0.8347666263580322
-    scale: 0.04074425250291824
-    zero_point: 20
-  '@Split_/model.8/Split_196:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 9.115667343139648
-    min_value: -0.55684494972229
-    scale: 0.0379314199090004
-    zero_point: 15
-  '@Split_/model.8/Split_196:out1':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 9.115667343139648
-    min_value: -0.55684494972229
-    scale: 0.0379314199090004
-    zero_point: 15
-  '@Concat_/model.2/Concat_198:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 19.005762100219727
-    min_value: -0.5569169521331787
-    scale: 0.07671638578176498
-    zero_point: 7
-  '@Add_/model.2/m.0/Add_199:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 19.005762100219727
-    min_value: -0.5569169521331787
-    scale: 0.07671638578176498
-    zero_point: 7
-  '@Conv_/model.6/m.0/cv2/conv/Conv_200:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 3.575324058532715
-    min_value: -5.03468656539917
-    scale: 0.03376474604010582
-    zero_point: 149
-  '@Conv_/model.6/m.1/cv2/conv/Conv_202:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 7.778915882110596
-    min_value: -7.631189823150635
-    scale: 0.06043178588151932
-    zero_point: 126
-  '@Conv_/model.8/cv1/conv/Conv_204:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 8.315394401550293
-    min_value: -7.617016315460205
-    scale: 0.06248004361987114
-    zero_point: 122
-  '@Conv_/model.2/m.0/cv2/conv/Conv_213:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 17.270702362060547
-    min_value: -23.530153274536133
-    scale: 0.16000336408615112
-    zero_point: 147
-  '@Conv_/model.6/m.0/cv1/conv/Conv_215:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 5.019379615783691
-    min_value: -5.529651641845703
-    scale: 0.0413687489926815
-    zero_point: 134
-  '@Split_/model.6/Split_216:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 9.555018424987793
-    min_value: -0.8347666263580322
-    scale: 0.04074425250291824
-    zero_point: 20
-  '@Split_/model.6/Split_216:out1':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 9.555018424987793
-    min_value: -0.8347666263580322
-    scale: 0.04074425250291824
-    zero_point: 20
-  '@Conv_/model.6/m.1/cv1/conv/Conv_217:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 5.028756618499756
-    min_value: -6.5239410400390625
-    scale: 0.04530469700694084
-    zero_point: 144
-  '@Conv_/model.7/conv/Conv_219:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 6.301906108856201
-    min_value: -5.412490367889404
-    scale: 0.04593880847096443
-    zero_point: 118
-  '@Conv_/model.6/cv1/conv/Conv_223:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 5.051752090454102
-    min_value: -9.386184692382812
-    scale: 0.05661936104297638
-    zero_point: 166
-  '@Conv_/model.2/m.0/cv1/conv/Conv_225:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 17.29471778869629
-    min_value: -33.645626068115234
-    scale: 0.19976605474948883
-    zero_point: 168
-  '@Split_/model.2/Split_226:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 19.005762100219727
-    min_value: -0.5569169521331787
-    scale: 0.07671638578176498
-    zero_point: 7
-  '@Split_/model.2/Split_226:out1':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 19.005762100219727
-    min_value: -0.5569169521331787
-    scale: 0.07671638578176498
-    zero_point: 7
-  '@Conv_/model.5/conv/Conv_227:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 4.225520133972168
-    min_value: -5.62370491027832
-    scale: 0.038624413311481476
-    zero_point: 146
-  '@Conv_/model.2/cv1/conv/Conv_231:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 12.543352127075195
-    min_value: -57.41944122314453
-    scale: 0.2743638753890991
-    zero_point: 209
-  '@Conv_/model.1/conv/Conv_233:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 50.02491760253906
-    min_value: -55.928733825683594
-    scale: 0.415504515171051
-    zero_point: 135
-  '@Conv_/model.0/conv/Conv_237:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 26.555723190307617
-    min_value: -28.025981903076172
-    scale: 0.21404589712619781
-    zero_point: 131
-  '@images_238:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 0.9944999814033508
-    min_value: 0.0
-    scale: 0.0038999998942017555
-    zero_point: 0
-  '@Reshape_/model.22/dfl/Reshape_1_13_acuity_mark_perm_239:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 13.47097110748291
-    min_value: 0.0
-    scale: 0.05282733589410782
-    zero_point: 0
-  '@Softmax_/model.22/dfl/Softmax_18_acuity_mark_perm_240:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 11.29991626739502
-    min_value: -37.094139099121094
-    scale: 0.1897806078195572
-    zero_point: 195
-  '@Reshape_/model.22/Reshape_23_acuity_mark_perm_241:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 11.29991626739502
-    min_value: -37.094139099121094
-    scale: 0.1897806078195572
-    zero_point: 195
-  '@Reshape_/model.22/Reshape_1_24_acuity_mark_perm_242:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 11.29991626739502
-    min_value: -37.094139099121094
-    scale: 0.1897806078195572
-    zero_point: 195
-  '@Reshape_/model.22/Reshape_2_25_acuity_mark_perm_243:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 11.29991626739502
-    min_value: -37.094139099121094
-    scale: 0.1897806078195572
-    zero_point: 195
-  '@Conv_/model.0/conv/Conv_237_acuity_mark_perm_244:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 0.9944999814033508
-    min_value: 0.0
-    scale: 0.0038999998942017555
-    zero_point: 0
-  '@Sigmoid_/model.22/cv2.0/cv2.0.1/act/Sigmoid_42_Mul_/model.22/cv2.0/cv2.0.1/act/Mul_35:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 25.496503829956055
-    min_value: -0.27846458554267883
-    scale: 0.10107830911874771
-    zero_point: 3
-  '@Sigmoid_/model.22/cv3.0/cv3.0.1/act/Sigmoid_44_Mul_/model.22/cv3.0/cv3.0.1/act/Mul_36:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 13.646459579467773
-    min_value: -0.27846458554267883
-    scale: 0.05460754409432411
-    zero_point: 5
-  '@Sigmoid_/model.22/cv2.1/cv2.1.1/act/Sigmoid_46_Mul_/model.22/cv2.1/cv2.1.1/act/Mul_37:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 32.69790267944336
-    min_value: -0.27846458554267883
-    scale: 0.12931908667087555
-    zero_point: 2
-  '@Sigmoid_/model.22/cv3.1/cv3.1.1/act/Sigmoid_48_Mul_/model.22/cv3.1/cv3.1.1/act/Mul_38:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 54.65968704223633
-    min_value: -0.27846455574035645
-    scale: 0.21544373035430908
-    zero_point: 1
-  '@Sigmoid_/model.22/cv2.2/cv2.2.1/act/Sigmoid_50_Mul_/model.22/cv2.2/cv2.2.1/act/Mul_39:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 15.954282760620117
-    min_value: -0.27846455574035645
-    scale: 0.06365783512592316
-    zero_point: 4
-  '@Sigmoid_/model.22/cv3.2/cv3.2.1/act/Sigmoid_52_Mul_/model.22/cv3.2/cv3.2.1/act/Mul_40:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 61.84547805786133
-    min_value: -0.2784622609615326
-    scale: 0.243623286485672
-    zero_point: 1
-  '@Sigmoid_/model.22/cv2.0/cv2.0.0/act/Sigmoid_54_Mul_/model.22/cv2.0/cv2.0.0/act/Mul_53:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 4.260555744171143
-    min_value: -0.2784646153450012
-    scale: 0.01780007965862751
-    zero_point: 16
-  '@Sigmoid_/model.22/cv3.0/cv3.0.0/act/Sigmoid_56_Mul_/model.22/cv3.0/cv3.0.0/act/Mul_55:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 2.7879397869110107
-    min_value: -0.27846458554267883
-    scale: 0.012025115080177784
-    zero_point: 23
-  '@Sigmoid_/model.22/cv2.1/cv2.1.0/act/Sigmoid_58_Mul_/model.22/cv2.1/cv2.1.0/act/Mul_57:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 5.8020782470703125
-    min_value: -0.27846458554267883
-    scale: 0.023845266550779343
-    zero_point: 12
-  '@Sigmoid_/model.22/cv3.1/cv3.1.0/act/Sigmoid_60_Mul_/model.22/cv3.1/cv3.1.0/act/Mul_59:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 4.588552474975586
-    min_value: -0.27846458554267883
-    scale: 0.019086342304944992
-    zero_point: 15
-  '@Sigmoid_/model.22/cv2.2/cv2.2.0/act/Sigmoid_62_Mul_/model.22/cv2.2/cv2.2.0/act/Mul_61:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 7.115724086761475
-    min_value: -0.27846458554267883
-    scale: 0.028996819630265236
-    zero_point: 10
-  '@Sigmoid_/model.22/cv3.2/cv3.2.0/act/Sigmoid_64_Mul_/model.22/cv3.2/cv3.2.0/act/Mul_63:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 7.089259147644043
-    min_value: -0.27846452593803406
-    scale: 0.028893033042550087
-    zero_point: 10
-  '@Sigmoid_/model.15/cv2/act/Sigmoid_68_Mul_/model.15/cv2/act/Mul_66:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 3.2371039390563965
-    min_value: -0.27846458554267883
-    scale: 0.013786543160676956
-    zero_point: 20
-  '@Sigmoid_/model.18/cv2/act/Sigmoid_72_Mul_/model.18/cv2/act/Mul_70:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 3.146293878555298
-    min_value: -0.27846458554267883
-    scale: 0.013430424965918064
-    zero_point: 21
-  '@Sigmoid_/model.21/cv2/act/Sigmoid_76_Mul_/model.21/cv2/act/Mul_74:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 6.6457600593566895
-    min_value: -0.27846458554267883
-    scale: 0.027153823524713516
-    zero_point: 10
-  '@Sigmoid_/model.15/m.0/cv2/act/Sigmoid_87_Mul_/model.15/m.0/cv2/act/Mul_83:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 4.6806511878967285
-    min_value: -0.27846458554267883
-    scale: 0.019447512924671173
-    zero_point: 14
-  '@Sigmoid_/model.18/m.0/cv2/act/Sigmoid_89_Mul_/model.18/m.0/cv2/act/Mul_84:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 7.876203536987305
-    min_value: -0.27846458554267883
-    scale: 0.031979091465473175
-    zero_point: 9
-  '@Sigmoid_/model.21/m.0/cv2/act/Sigmoid_91_Mul_/model.21/m.0/cv2/act/Mul_85:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 6.566067218780518
-    min_value: -0.27846458554267883
-    scale: 0.02684130147099495
-    zero_point: 10
-  '@Sigmoid_/model.15/m.0/cv1/act/Sigmoid_93_Mul_/model.15/m.0/cv1/act/Mul_92:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 2.934751272201538
-    min_value: -0.27846458554267883
-    scale: 0.012600846588611603
-    zero_point: 22
-  '@Sigmoid_/model.18/m.0/cv1/act/Sigmoid_95_Mul_/model.18/m.0/cv1/act/Mul_94:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 2.436624050140381
-    min_value: -0.2784646153450012
-    scale: 0.010647405870258808
-    zero_point: 26
-  '@Sigmoid_/model.21/m.0/cv1/act/Sigmoid_97_Mul_/model.21/m.0/cv1/act/Mul_96:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 4.046349048614502
-    min_value: -0.27846455574035645
-    scale: 0.016960054636001587
-    zero_point: 16
-  '@Sigmoid_/model.15/cv1/act/Sigmoid_108_Mul_/model.15/cv1/act/Mul_104:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 4.6806511878967285
-    min_value: -0.27846458554267883
-    scale: 0.019447512924671173
-    zero_point: 14
-  '@Sigmoid_/model.18/cv1/act/Sigmoid_110_Mul_/model.18/cv1/act/Mul_105:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 7.876203536987305
-    min_value: -0.27846458554267883
-    scale: 0.031979091465473175
-    zero_point: 9
-  '@Sigmoid_/model.21/cv1/act/Sigmoid_112_Mul_/model.21/cv1/act/Mul_106:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 6.566067218780518
-    min_value: -0.27846458554267883
-    scale: 0.02684130147099495
-    zero_point: 10
-  '@Sigmoid_/model.4/cv2/act/Sigmoid_121_Mul_/model.4/cv2/act/Mul_114:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 5.866823196411133
-    min_value: -0.27846458554267883
-    scale: 0.024099169299006462
-    zero_point: 12
-  '@Sigmoid_/model.12/cv2/act/Sigmoid_124_Mul_/model.12/cv2/act/Mul_116:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 5.866823196411133
-    min_value: -0.27846458554267883
-    scale: 0.024099169299006462
-    zero_point: 12
-  '@Sigmoid_/model.9/cv2/act/Sigmoid_127_Mul_/model.9/cv2/act/Mul_118:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 5.240940093994141
-    min_value: -0.27846458554267883
-    scale: 0.021644724532961845
-    zero_point: 13
-  '@Sigmoid_/model.16/act/Sigmoid_132_Mul_/model.16/act/Mul_122:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 5.866823196411133
-    min_value: -0.27846458554267883
-    scale: 0.024099169299006462
-    zero_point: 12
-  '@Sigmoid_/model.19/act/Sigmoid_136_Mul_/model.19/act/Mul_125:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 5.240940093994141
-    min_value: -0.27846458554267883
-    scale: 0.021644724532961845
-    zero_point: 13
-  '@Sigmoid_/model.4/m.1/cv2/act/Sigmoid_144_Mul_/model.4/m.1/cv2/act/Mul_143:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 5.525309085845947
-    min_value: -0.27846455574035645
-    scale: 0.022759897634387016
-    zero_point: 12
-  '@Sigmoid_/model.12/m.0/cv2/act/Sigmoid_147_Mul_/model.12/m.0/cv2/act/Mul_134:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 5.876299858093262
-    min_value: -0.27846458554267883
-    scale: 0.024136332795023918
-    zero_point: 12
-  '@Sigmoid_/model.12/m.0/cv1/act/Sigmoid_149_Mul_/model.12/m.0/cv1/act/Mul_148:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 3.1812362670898438
-    min_value: -0.27846455574035645
-    scale: 0.013567454181611538
-    zero_point: 21
-  '@Sigmoid_/model.9/cv1/act/Sigmoid_151_Mul_/model.9/cv1/act/Mul_137:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 5.726702690124512
-    min_value: -0.27841320633888245
-    scale: 0.023549474775791168
-    zero_point: 12
-  '@Sigmoid_/model.8/cv2/act/Sigmoid_153_Mul_/model.8/cv2/act/Mul_152:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 5.890181541442871
-    min_value: -0.27846458554267883
-    scale: 0.024190770462155342
-    zero_point: 12
-  '@Sigmoid_/model.4/m.0/cv2/act/Sigmoid_156_Mul_/model.4/m.0/cv2/act/Mul_142:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 3.6470155715942383
-    min_value: -0.27846458554267883
-    scale: 0.015394039452075958
-    zero_point: 18
-  '@Sigmoid_/model.4/m.0/cv1/act/Sigmoid_164_Mul_/model.4/m.0/cv1/act/Mul_157:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 3.647287607192993
-    min_value: -0.27846458554267883
-    scale: 0.015395106747746468
-    zero_point: 18
-  '@Sigmoid_/model.4/m.1/cv1/act/Sigmoid_166_Mul_/model.4/m.1/cv1/act/Mul_158:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 3.0029115676879883
-    min_value: -0.27846458554267883
-    scale: 0.012868141755461693
-    zero_point: 22
-  '@Sigmoid_/model.12/cv1/act/Sigmoid_168_Mul_/model.12/cv1/act/Mul_161:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 5.876299858093262
-    min_value: -0.27846458554267883
-    scale: 0.024136332795023918
-    zero_point: 12
-  '@Sigmoid_/model.4/cv1/act/Sigmoid_172_Mul_/model.4/cv1/act/Mul_171:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 7.742403030395508
-    min_value: -0.8348144292831421
-    scale: 0.033636145293712616
-    zero_point: 25
-  '@Sigmoid_/model.8/m.0/cv2/act/Sigmoid_177_Mul_/model.8/m.0/cv2/act/Mul_176:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 9.331609725952148
-    min_value: -0.27846458554267883
-    scale: 0.03768656402826309
-    zero_point: 7
-  '@Sigmoid_/model.6/cv2/act/Sigmoid_181_Mul_/model.6/cv2/act/Mul_175:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 5.240940093994141
-    min_value: -0.27846458554267883
-    scale: 0.021644724532961845
-    zero_point: 13
-  '@Sigmoid_/model.3/act/Sigmoid_185_Mul_/model.3/act/Mul_178:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 5.444778919219971
-    min_value: -0.2784646153450012
-    scale: 0.022444093599915504
-    zero_point: 12
-  '@Sigmoid_/model.8/m.0/cv1/act/Sigmoid_190_Mul_/model.8/m.0/cv1/act/Mul_183:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 7.6831560134887695
-    min_value: -0.27846452593803406
-    scale: 0.031222039833664894
-    zero_point: 9
-  '@Sigmoid_/model.2/cv2/act/Sigmoid_192_Mul_/model.2/cv2/act/Mul_186:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 6.623713970184326
-    min_value: -0.27846458554267883
-    scale: 0.027067366987466812
-    zero_point: 10
-  '@Sigmoid_/model.6/m.0/cv2/act/Sigmoid_201_Mul_/model.6/m.0/cv2/act/Mul_194:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 3.4779200553894043
-    min_value: -0.27846455574035645
-    scale: 0.01473092008382082
-    zero_point: 19
-  '@Sigmoid_/model.6/m.1/cv2/act/Sigmoid_203_Mul_/model.6/m.1/cv2/act/Mul_195:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 7.775661945343018
-    min_value: -0.27846458554267883
-    scale: 0.031584810465574265
-    zero_point: 9
-  '@Sigmoid_/model.8/cv1/act/Sigmoid_205_Mul_/model.8/cv1/act/Mul_197:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 9.115667343139648
-    min_value: -0.55684494972229
-    scale: 0.0379314199090004
-    zero_point: 15
-  '@Sigmoid_/model.6/m.0/cv1/act/Sigmoid_208_Mul_/model.6/m.0/cv1/act/Mul_207:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 4.98642635345459
-    min_value: -0.2784646153450012
-    scale: 0.020646631717681885
-    zero_point: 13
-  '@Sigmoid_/model.6/m.1/cv1/act/Sigmoid_210_Mul_/model.6/m.1/cv1/act/Mul_209:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 4.996047496795654
-    min_value: -0.27846455574035645
-    scale: 0.020684361457824707
-    zero_point: 13
-  '@Sigmoid_/model.7/act/Sigmoid_212_Mul_/model.7/act/Mul_211:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 6.290376663208008
-    min_value: -0.27846455574035645
-    scale: 0.025760160759091377
+    max_value: 4.476802349090576
+    min_value: -5.3812971115112305
+    scale: 0.03865921124815941
     zero_point: 11
-  '@Sigmoid_/model.2/m.0/cv2/act/Sigmoid_214_Mul_/model.2/m.0/cv2/act/Mul_206:out0':
-    qtype: u8
+  '@Conv_/model.21/cv1/conv/Conv_111:out0':
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 17.270702362060547
-    min_value: -0.27846455574035645
-    scale: 0.06882026791572571
-    zero_point: 4
-  '@Sigmoid_/model.6/cv1/act/Sigmoid_220_Mul_/model.6/cv1/act/Mul_218:out0':
-    qtype: u8
+    max_value: 4.034438610076904
+    min_value: -6.44828987121582
+    scale: 0.041108742356300354
+    zero_point: 29
+  '@Concat_/model.14/Concat_113:out0':
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 9.555018424987793
-    min_value: -0.8347666263580322
-    scale: 0.04074425250291824
-    zero_point: 20
-  '@Sigmoid_/model.2/m.0/cv1/act/Sigmoid_222_Mul_/model.2/m.0/cv1/act/Mul_221:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 17.29471778869629
+    max_value: 5.86663293838501
     min_value: -0.27846458554267883
-    scale: 0.06891444325447083
-    zero_point: 4
-  '@Sigmoid_/model.5/act/Sigmoid_228_Mul_/model.5/act/Mul_224:out0':
-    qtype: u8
+    scale: 0.02409842237830162
+    zero_point: -116
+  '@Concat_/model.17/Concat_115:out0':
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 4.164642333984375
+    max_value: 5.86663293838501
     min_value: -0.27846458554267883
-    scale: 0.017423950135707855
-    zero_point: 16
-  '@Sigmoid_/model.2/cv1/act/Sigmoid_230_Mul_/model.2/cv1/act/Mul_229:out0':
-    qtype: u8
+    scale: 0.02409842237830162
+    zero_point: -116
+  '@Concat_/model.20/Concat_117:out0':
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 19.005762100219727
-    min_value: -0.5569169521331787
-    scale: 0.07671638578176498
-    zero_point: 7
-  '@Sigmoid_/model.1/act/Sigmoid_234_Mul_/model.1/act/Mul_232:out0':
-    qtype: u8
-    quantizer: asymmetric_affine
-    rounding: rtne
-    max_value: 50.02491760253906
+    max_value: 5.244396686553955
     min_value: -0.27846458554267883
-    scale: 0.19726817309856415
+    scale: 0.02165828086435795
+    zero_point: -115
+  '@Resize_/model.13/Resize_119:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 5.86663293838501
+    min_value: -0.27846458554267883
+    scale: 0.02409842237830162
+    zero_point: -116
+  '@Conv_/model.4/cv2/conv/Conv_120:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 5.8829803466796875
+    min_value: -6.048238754272461
+    scale: 0.04678909480571747
     zero_point: 1
-  '@Sigmoid_/model.0/act/Sigmoid_236_Mul_/model.0/act/Mul_235:out0':
-    qtype: u8
+  '@Conv_/model.12/cv2/conv/Conv_123:out0':
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 26.555723190307617
+    max_value: 3.858049154281616
+    min_value: -5.62002420425415
+    scale: 0.03716891258955002
+    zero_point: 23
+  '@Conv_/model.9/cv2/conv/Conv_126:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 5.271336078643799
+    min_value: -7.346993446350098
+    scale: 0.04948364570736885
+    zero_point: 20
+  '@Concat_/model.9/Concat_128:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 5.727268695831299
+    min_value: -0.2784140408039093
+    scale: 0.0235516969114542
+    zero_point: -116
+  '@Concat_/model.4/Concat_129:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 7.742108345031738
+    min_value: -0.834775447845459
+    scale: 0.033634837716817856
+    zero_point: -103
+  '@Add_/model.4/m.1/Add_130:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 7.742108345031738
+    min_value: -0.834775447845459
+    scale: 0.033634837716817856
+    zero_point: -103
+  '@Conv_/model.16/conv/Conv_131:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 3.7774784564971924
+    min_value: -5.955806255340576
+    scale: 0.0381697453558445
+    zero_point: 28
+  '@Concat_/model.12/Concat_133:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 5.877587795257568
     min_value: -0.27846458554267883
-    scale: 0.1052321121096611
+    scale: 0.024141382426023483
+    zero_point: -116
+  '@Conv_/model.19/conv/Conv_135:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 3.7904787063598633
+    min_value: -8.500910758972168
+    scale: 0.04820152744650841
+    zero_point: 48
+  '@MaxPool_/model.9/m/MaxPool_138:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 5.727268695831299
+    min_value: -0.2784140408039093
+    scale: 0.0235516969114542
+    zero_point: -116
+  '@MaxPool_/model.9/m_1/MaxPool_139:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 5.727268695831299
+    min_value: -0.2784140408039093
+    scale: 0.0235516969114542
+    zero_point: -116
+  '@MaxPool_/model.9/m_2/MaxPool_140:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 5.727268695831299
+    min_value: -0.2784140408039093
+    scale: 0.0235516969114542
+    zero_point: -116
+  '@Add_/model.4/m.0/Add_141:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 7.742108345031738
+    min_value: -0.834775447845459
+    scale: 0.033634837716817856
+    zero_point: -103
+  '@Conv_/model.4/m.1/cv2/conv/Conv_145:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 5.544759750366211
+    min_value: -8.729540824890137
+    scale: 0.05597764998674393
+    zero_point: 28
+  '@Conv_/model.12/m.0/cv2/conv/Conv_146:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 4.5530805587768555
+    min_value: -4.853998184204102
+    scale: 0.03689050301909447
+    zero_point: 4
+  '@Conv_/model.9/cv1/conv/Conv_150:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 5.745578289031982
+    min_value: -2.9460160732269287
+    scale: 0.034084681421518326
+    zero_point: -42
+  '@Conv_/model.8/cv2/conv/Conv_154:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 5.907501220703125
+    min_value: -9.861494064331055
+    scale: 0.06183919683098793
+    zero_point: 31
+  '@Conv_/model.4/m.0/cv2/conv/Conv_155:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 3.733999013900757
+    min_value: -5.252102851867676
+    scale: 0.03523961454629898
+    zero_point: 21
+  '@Conv_/model.12/m.0/cv1/conv/Conv_159:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 3.298112392425537
+    min_value: -5.073826789855957
+    scale: 0.03283113241195679
+    zero_point: 27
+  '@Split_/model.12/Split_160:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 5.877587795257568
+    min_value: -0.27846458554267883
+    scale: 0.024141382426023483
+    zero_point: -116
+  '@Split_/model.12/Split_160:out1':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 5.877587795257568
+    min_value: -0.27846458554267883
+    scale: 0.024141382426023483
+    zero_point: -116
+  '@Concat_/model.8/Concat_162:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 9.12347412109375
+    min_value: -0.5568416118621826
+    scale: 0.03796202316880226
+    zero_point: -113
+  '@Conv_/model.4/m.0/cv1/conv/Conv_163:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 3.7353110313415527
+    min_value: -4.767669200897217
+    scale: 0.033345021307468414
+    zero_point: 15
+  '@Conv_/model.4/m.1/cv1/conv/Conv_165:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 3.135582447052002
+    min_value: -4.860471725463867
+    scale: 0.03135707601904869
+    zero_point: 27
+  '@Conv_/model.12/cv1/conv/Conv_167:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 5.893789291381836
+    min_value: -5.971004962921143
+    scale: 0.04652860388159752
+    zero_point: 0
+  '@Add_/model.8/m.0/Add_169:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 9.12347412109375
+    min_value: -0.5568416118621826
+    scale: 0.03796202316880226
+    zero_point: -113
+  '@Split_/model.4/Split_170:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 7.742108345031738
+    min_value: -0.834775447845459
+    scale: 0.033634837716817856
+    zero_point: -103
+  '@Split_/model.4/Split_170:out1':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 7.742108345031738
+    min_value: -0.834775447845459
+    scale: 0.033634837716817856
+    zero_point: -103
+  '@Conv_/model.4/cv1/conv/Conv_173:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 5.407869815826416
+    min_value: -7.892282009124756
+    scale: 0.052157457917928696
+    zero_point: 23
+  '@Concat_/model.11/Concat_174:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 5.244396686553955
+    min_value: -0.27846458554267883
+    scale: 0.02165828086435795
+    zero_point: -115
+  '@Resize_/model.10/Resize_179:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 5.244396686553955
+    min_value: -0.27846458554267883
+    scale: 0.02165828086435795
+    zero_point: -115
+  '@Conv_/model.6/cv2/conv/Conv_180:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 4.589868068695068
+    min_value: -5.430642127990723
+    scale: 0.039296116679906845
+    zero_point: 10
+  '@Conv_/model.8/m.0/cv2/conv/Conv_182:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 9.338699340820312
+    min_value: -11.910566329956055
+    scale: 0.08333045244216919
+    zero_point: 15
+  '@Conv_/model.3/conv/Conv_184:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 5.473423480987549
+    min_value: -7.722813129425049
+    scale: 0.05174994841217995
+    zero_point: 21
+  '@Concat_/model.6/Concat_187:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 9.552729606628418
+    min_value: -0.8347752094268799
+    scale: 0.040735311806201935
+    zero_point: -108
+  '@Add_/model.6/m.1/Add_188:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 9.552729606628418
+    min_value: -0.8347752094268799
+    scale: 0.040735311806201935
+    zero_point: -108
+  '@Conv_/model.8/m.0/cv1/conv/Conv_189:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 7.689371109008789
+    min_value: -7.873259544372559
+    scale: 0.06102992594242096
+    zero_point: 1
+  '@Conv_/model.2/cv2/conv/Conv_191:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 6.645181655883789
+    min_value: -20.27743148803711
+    scale: 0.10557887703180313
+    zero_point: 64
+  '@Add_/model.6/m.0/Add_193:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 9.552729606628418
+    min_value: -0.8347752094268799
+    scale: 0.040735311806201935
+    zero_point: -108
+  '@Split_/model.8/Split_196:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 9.12347412109375
+    min_value: -0.5568416118621826
+    scale: 0.03796202316880226
+    zero_point: -113
+  '@Split_/model.8/Split_196:out1':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 9.12347412109375
+    min_value: -0.5568416118621826
+    scale: 0.03796202316880226
+    zero_point: -113
+  '@Concat_/model.2/Concat_198:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 19.055374145507812
+    min_value: -0.5569172501564026
+    scale: 0.07691094279289246
+    zero_point: -121
+  '@Add_/model.2/m.0/Add_199:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 19.055374145507812
+    min_value: -0.5569172501564026
+    scale: 0.07691094279289246
+    zero_point: -121
+  '@Conv_/model.6/m.0/cv2/conv/Conv_200:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 3.5763754844665527
+    min_value: -5.0404744148254395
+    scale: 0.033791568130254745
+    zero_point: 21
+  '@Conv_/model.6/m.1/cv2/conv/Conv_202:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 7.777129650115967
+    min_value: -7.629624843597412
+    scale: 0.06041864678263664
+    zero_point: -2
+  '@Conv_/model.8/cv1/conv/Conv_204:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 8.314523696899414
+    min_value: -7.616853713989258
+    scale: 0.06247599050402641
+    zero_point: -6
+  '@Conv_/model.2/m.0/cv2/conv/Conv_213:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 17.29527473449707
+    min_value: -23.57930564880371
+    scale: 0.16029247641563416
+    zero_point: 19
+  '@Conv_/model.6/m.0/cv1/conv/Conv_215:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 5.017488479614258
+    min_value: -5.522828578948975
+    scale: 0.04133457690477371
+    zero_point: 6
+  '@Split_/model.6/Split_216:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 9.552729606628418
+    min_value: -0.8347752094268799
+    scale: 0.040735311806201935
+    zero_point: -108
+  '@Split_/model.6/Split_216:out1':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 9.552729606628418
+    min_value: -0.8347752094268799
+    scale: 0.040735311806201935
+    zero_point: -108
+  '@Conv_/model.6/m.1/cv1/conv/Conv_217:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 5.028744220733643
+    min_value: -6.524206638336182
+    scale: 0.04530568793416023
+    zero_point: 16
+  '@Conv_/model.7/conv/Conv_219:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 6.3023762702941895
+    min_value: -5.411827087402344
+    scale: 0.045938052237033844
+    zero_point: -10
+  '@Conv_/model.6/cv1/conv/Conv_223:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 5.056800842285156
+    min_value: -9.393583297729492
+    scale: 0.056668173521757126
+    zero_point: 38
+  '@Conv_/model.2/m.0/cv1/conv/Conv_225:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 17.33524513244629
+    min_value: -33.755977630615234
+    scale: 0.20035775005817413
+    zero_point: 40
+  '@Split_/model.2/Split_226:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 19.055374145507812
+    min_value: -0.5569172501564026
+    scale: 0.07691094279289246
+    zero_point: -121
+  '@Split_/model.2/Split_226:out1':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 19.055374145507812
+    min_value: -0.5569172501564026
+    scale: 0.07691094279289246
+    zero_point: -121
+  '@Conv_/model.5/conv/Conv_227:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 4.226071357727051
+    min_value: -5.626607894897461
+    scale: 0.03863795846700668
+    zero_point: 18
+  '@Conv_/model.2/cv1/conv/Conv_231:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 12.57499885559082
+    min_value: -57.61260986328125
+    scale: 0.2752455174922943
+    zero_point: 81
+  '@Conv_/model.1/conv/Conv_233:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 50.23661804199219
+    min_value: -56.18391418457031
+    scale: 0.4173354208469391
+    zero_point: 7
+  '@Conv_/model.0/conv/Conv_237:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 26.695266723632812
+    min_value: -28.197128295898438
+    scale: 0.21526429057121277
     zero_point: 3
+  '@images_238:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 1.0000079870224
+    min_value: 0.0
+    scale: 0.003921600058674812
+    zero_point: -128
+  '@Reshape_/model.22/dfl/Reshape_1_13_acuity_mark_perm_239:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 13.46902084350586
+    min_value: 0.0
+    scale: 0.052819687873125076
+    zero_point: -128
+  '@Softmax_/model.22/dfl/Softmax_18_acuity_mark_perm_240:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 11.297074317932129
+    min_value: -37.11203384399414
+    scale: 0.18983963131904602
+    zero_point: 67
+  '@Reshape_/model.22/Reshape_23_acuity_mark_perm_241:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 11.297074317932129
+    min_value: -37.11203384399414
+    scale: 0.18983963131904602
+    zero_point: 67
+  '@Reshape_/model.22/Reshape_1_24_acuity_mark_perm_242:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 11.297074317932129
+    min_value: -37.11203384399414
+    scale: 0.18983963131904602
+    zero_point: 67
+  '@Reshape_/model.22/Reshape_2_25_acuity_mark_perm_243:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 11.297074317932129
+    min_value: -37.11203384399414
+    scale: 0.18983963131904602
+    zero_point: 67
+  '@Conv_/model.0/conv/Conv_237_acuity_mark_perm_244:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 1.0000079870224
+    min_value: 0.0
+    scale: 0.003921600058674812
+    zero_point: -128
+  '@Sigmoid_/model.22/cv2.0/cv2.0.1/act/Sigmoid_42_Mul_/model.22/cv2.0/cv2.0.1/act/Mul_35:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 25.508453369140625
+    min_value: -0.27846458554267883
+    scale: 0.10112517327070236
+    zero_point: -125
+  '@Sigmoid_/model.22/cv3.0/cv3.0.1/act/Sigmoid_44_Mul_/model.22/cv3.0/cv3.0.1/act/Mul_36:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 13.65383529663086
+    min_value: -0.27846458554267883
+    scale: 0.05463646724820137
+    zero_point: -123
+  '@Sigmoid_/model.22/cv2.1/cv2.1.1/act/Sigmoid_46_Mul_/model.22/cv2.1/cv2.1.1/act/Mul_37:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 32.712772369384766
+    min_value: -0.27846455574035645
+    scale: 0.12937740981578827
+    zero_point: -126
+  '@Sigmoid_/model.22/cv3.1/cv3.1.1/act/Sigmoid_48_Mul_/model.22/cv3.1/cv3.1.1/act/Mul_38:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 54.67900466918945
+    min_value: -0.27846449613571167
+    scale: 0.2155194878578186
+    zero_point: -127
+  '@Sigmoid_/model.22/cv2.2/cv2.2.1/act/Sigmoid_50_Mul_/model.22/cv2.2/cv2.2.1/act/Mul_39:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 15.969165802001953
+    min_value: -0.2784644663333893
+    scale: 0.06371620297431946
+    zero_point: -124
+  '@Sigmoid_/model.22/cv3.2/cv3.2.1/act/Sigmoid_52_Mul_/model.22/cv3.2/cv3.2.1/act/Mul_40:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 61.867305755615234
+    min_value: -0.2784644067287445
+    scale: 0.24370890855789185
+    zero_point: -127
+  '@Sigmoid_/model.22/cv2.0/cv2.0.0/act/Sigmoid_54_Mul_/model.22/cv2.0/cv2.0.0/act/Mul_53:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 4.2651591300964355
+    min_value: -0.27846458554267883
+    scale: 0.017818132415413857
+    zero_point: -112
+  '@Sigmoid_/model.22/cv3.0/cv3.0.0/act/Sigmoid_56_Mul_/model.22/cv3.0/cv3.0.0/act/Mul_55:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 2.7869722843170166
+    min_value: -0.27846458554267883
+    scale: 0.0120213208720088
+    zero_point: -105
+  '@Sigmoid_/model.22/cv2.1/cv2.1.0/act/Sigmoid_58_Mul_/model.22/cv2.1/cv2.1.0/act/Mul_57:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 5.803764343261719
+    min_value: -0.27846458554267883
+    scale: 0.023851878941059113
+    zero_point: -116
+  '@Sigmoid_/model.22/cv3.1/cv3.1.0/act/Sigmoid_60_Mul_/model.22/cv3.1/cv3.1.0/act/Mul_59:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 4.587562084197998
+    min_value: -0.27846455574035645
+    scale: 0.019082458689808846
+    zero_point: -113
+  '@Sigmoid_/model.22/cv2.2/cv2.2.0/act/Sigmoid_62_Mul_/model.22/cv2.2/cv2.2.0/act/Mul_61:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 7.118438720703125
+    min_value: -0.27846452593803406
+    scale: 0.02900746278464794
+    zero_point: -118
+  '@Sigmoid_/model.22/cv3.2/cv3.2.0/act/Sigmoid_64_Mul_/model.22/cv3.2/cv3.2.0/act/Mul_63:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 7.092994689941406
+    min_value: -0.27846452593803406
+    scale: 0.02890768274664879
+    zero_point: -118
+  '@Sigmoid_/model.15/cv2/act/Sigmoid_68_Mul_/model.15/cv2/act/Mul_66:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 3.2377216815948486
+    min_value: -0.27846458554267883
+    scale: 0.013788965530693531
+    zero_point: -108
+  '@Sigmoid_/model.18/cv2/act/Sigmoid_72_Mul_/model.18/cv2/act/Mul_70:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 3.1474368572235107
+    min_value: -0.27846455574035645
+    scale: 0.013434907421469688
+    zero_point: -107
+  '@Sigmoid_/model.21/cv2/act/Sigmoid_76_Mul_/model.21/cv2/act/Mul_74:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 6.647210597991943
+    min_value: -0.27846455574035645
+    scale: 0.027159512042999268
+    zero_point: -118
+  '@Sigmoid_/model.15/m.0/cv2/act/Sigmoid_87_Mul_/model.15/m.0/cv2/act/Mul_83:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 4.6813740730285645
+    min_value: -0.27846458554267883
+    scale: 0.019450347870588303
+    zero_point: -114
+  '@Sigmoid_/model.18/m.0/cv2/act/Sigmoid_89_Mul_/model.18/m.0/cv2/act/Mul_84:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 7.87684965133667
+    min_value: -0.27846458554267883
+    scale: 0.03198162466287613
+    zero_point: -119
+  '@Sigmoid_/model.21/m.0/cv2/act/Sigmoid_91_Mul_/model.21/m.0/cv2/act/Mul_85:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 6.5651116371154785
+    min_value: -0.27846458554267883
+    scale: 0.026837553828954697
+    zero_point: -118
+  '@Sigmoid_/model.15/m.0/cv1/act/Sigmoid_93_Mul_/model.15/m.0/cv1/act/Mul_92:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 2.9347262382507324
+    min_value: -0.27846458554267883
+    scale: 0.012600747868418694
+    zero_point: -106
+  '@Sigmoid_/model.18/m.0/cv1/act/Sigmoid_95_Mul_/model.18/m.0/cv1/act/Mul_94:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 2.4368462562561035
+    min_value: -0.27846452593803406
+    scale: 0.010648277588188648
+    zero_point: -102
+  '@Sigmoid_/model.21/m.0/cv1/act/Sigmoid_97_Mul_/model.21/m.0/cv1/act/Mul_96:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 4.046753883361816
+    min_value: -0.27846458554267883
+    scale: 0.01696164160966873
+    zero_point: -112
+  '@Sigmoid_/model.15/cv1/act/Sigmoid_108_Mul_/model.15/cv1/act/Mul_104:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 4.6813740730285645
+    min_value: -0.27846458554267883
+    scale: 0.019450347870588303
+    zero_point: -114
+  '@Sigmoid_/model.18/cv1/act/Sigmoid_110_Mul_/model.18/cv1/act/Mul_105:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 7.87684965133667
+    min_value: -0.27846458554267883
+    scale: 0.03198162466287613
+    zero_point: -119
+  '@Sigmoid_/model.21/cv1/act/Sigmoid_112_Mul_/model.21/cv1/act/Mul_106:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 6.5651116371154785
+    min_value: -0.27846458554267883
+    scale: 0.026837553828954697
+    zero_point: -118
+  '@Sigmoid_/model.4/cv2/act/Sigmoid_121_Mul_/model.4/cv2/act/Mul_114:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 5.86663293838501
+    min_value: -0.27846458554267883
+    scale: 0.02409842237830162
+    zero_point: -116
+  '@Sigmoid_/model.12/cv2/act/Sigmoid_124_Mul_/model.12/cv2/act/Mul_116:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 5.86663293838501
+    min_value: -0.27846458554267883
+    scale: 0.02409842237830162
+    zero_point: -116
+  '@Sigmoid_/model.9/cv2/act/Sigmoid_127_Mul_/model.9/cv2/act/Mul_118:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 5.244396686553955
+    min_value: -0.27846458554267883
+    scale: 0.02165828086435795
+    zero_point: -115
+  '@Sigmoid_/model.16/act/Sigmoid_132_Mul_/model.16/act/Mul_122:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 5.86663293838501
+    min_value: -0.27846458554267883
+    scale: 0.02409842237830162
+    zero_point: -116
+  '@Sigmoid_/model.19/act/Sigmoid_136_Mul_/model.19/act/Mul_125:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 5.244396686553955
+    min_value: -0.27846458554267883
+    scale: 0.02165828086435795
+    zero_point: -115
+  '@Sigmoid_/model.4/m.1/cv2/act/Sigmoid_144_Mul_/model.4/m.1/cv2/act/Mul_143:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 5.5231757164001465
+    min_value: -0.27846455574035645
+    scale: 0.02275153063237667
+    zero_point: -116
+  '@Sigmoid_/model.12/m.0/cv2/act/Sigmoid_147_Mul_/model.12/m.0/cv2/act/Mul_134:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 5.877587795257568
+    min_value: -0.27846458554267883
+    scale: 0.024141382426023483
+    zero_point: -116
+  '@Sigmoid_/model.12/m.0/cv1/act/Sigmoid_149_Mul_/model.12/m.0/cv1/act/Mul_148:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 3.1805810928344727
+    min_value: -0.27846458554267883
+    scale: 0.013564884662628174
+    zero_point: -107
+  '@Sigmoid_/model.9/cv1/act/Sigmoid_151_Mul_/model.9/cv1/act/Mul_137:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 5.727268695831299
+    min_value: -0.2784140408039093
+    scale: 0.0235516969114542
+    zero_point: -116
+  '@Sigmoid_/model.8/cv2/act/Sigmoid_153_Mul_/model.8/cv2/act/Mul_152:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 5.891482353210449
+    min_value: -0.27846455574035645
+    scale: 0.024195868521928787
+    zero_point: -116
+  '@Sigmoid_/model.4/m.0/cv2/act/Sigmoid_156_Mul_/model.4/m.0/cv2/act/Mul_142:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 3.6468498706817627
+    min_value: -0.27846455574035645
+    scale: 0.015393390320241451
+    zero_point: -110
+  '@Sigmoid_/model.4/m.0/cv1/act/Sigmoid_164_Mul_/model.4/m.0/cv1/act/Mul_157:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 3.648242950439453
+    min_value: -0.27846455574035645
+    scale: 0.015398852527141571
+    zero_point: -110
+  '@Sigmoid_/model.4/m.1/cv1/act/Sigmoid_166_Mul_/model.4/m.1/cv1/act/Mul_158:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 3.004944086074829
+    min_value: -0.27846458554267883
+    scale: 0.012876112014055252
+    zero_point: -106
+  '@Sigmoid_/model.12/cv1/act/Sigmoid_168_Mul_/model.12/cv1/act/Mul_161:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 5.877587795257568
+    min_value: -0.27846458554267883
+    scale: 0.024141382426023483
+    zero_point: -116
+  '@Sigmoid_/model.4/cv1/act/Sigmoid_172_Mul_/model.4/cv1/act/Mul_171:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 7.742108345031738
+    min_value: -0.834775447845459
+    scale: 0.033634837716817856
+    zero_point: -103
+  '@Sigmoid_/model.8/m.0/cv2/act/Sigmoid_177_Mul_/model.8/m.0/cv2/act/Mul_176:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 9.337878227233887
+    min_value: -0.27846458554267883
+    scale: 0.03771114721894264
+    zero_point: -121
+  '@Sigmoid_/model.6/cv2/act/Sigmoid_181_Mul_/model.6/cv2/act/Mul_175:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 5.244396686553955
+    min_value: -0.27846458554267883
+    scale: 0.02165828086435795
+    zero_point: -115
+  '@Sigmoid_/model.3/act/Sigmoid_185_Mul_/model.3/act/Mul_178:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 5.4505486488342285
+    min_value: -0.27846455574035645
+    scale: 0.022466719150543213
+    zero_point: -116
+  '@Sigmoid_/model.8/m.0/cv1/act/Sigmoid_190_Mul_/model.8/m.0/cv1/act/Mul_183:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 7.685853958129883
+    min_value: -0.27846455574035645
+    scale: 0.031232621520757675
+    zero_point: -119
+  '@Sigmoid_/model.2/cv2/act/Sigmoid_192_Mul_/model.2/cv2/act/Mul_186:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 6.636552810668945
+    min_value: -0.27846458554267883
+    scale: 0.027117716148495674
+    zero_point: -118
+  '@Sigmoid_/model.6/m.0/cv2/act/Sigmoid_201_Mul_/model.6/m.0/cv2/act/Mul_194:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 3.4790427684783936
+    min_value: -0.27846452593803406
+    scale: 0.014735322445631027
+    zero_point: -109
+  '@Sigmoid_/model.6/m.1/cv2/act/Sigmoid_203_Mul_/model.6/m.1/cv2/act/Mul_195:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 7.773870944976807
+    min_value: -0.27846455574035645
+    scale: 0.031577788293361664
+    zero_point: -119
+  '@Sigmoid_/model.8/cv1/act/Sigmoid_205_Mul_/model.8/cv1/act/Mul_197:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 9.12347412109375
+    min_value: -0.5568416118621826
+    scale: 0.03796202316880226
+    zero_point: -113
+  '@Sigmoid_/model.6/m.0/cv1/act/Sigmoid_208_Mul_/model.6/m.0/cv1/act/Mul_207:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 4.984485626220703
+    min_value: -0.27846458554267883
+    scale: 0.020639020949602127
+    zero_point: -115
+  '@Sigmoid_/model.6/m.1/cv1/act/Sigmoid_210_Mul_/model.6/m.1/cv1/act/Mul_209:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 4.996035099029541
+    min_value: -0.27846458554267883
+    scale: 0.020684313029050827
+    zero_point: -115
+  '@Sigmoid_/model.7/act/Sigmoid_212_Mul_/model.7/act/Mul_211:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 6.290851593017578
+    min_value: -0.27846458554267883
+    scale: 0.025762025266885757
+    zero_point: -117
+  '@Sigmoid_/model.2/m.0/cv2/act/Sigmoid_214_Mul_/model.2/m.0/cv2/act/Mul_206:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 17.29527473449707
+    min_value: -0.27846458554267883
+    scale: 0.06891662627458572
+    zero_point: -124
+  '@Sigmoid_/model.6/cv1/act/Sigmoid_220_Mul_/model.6/cv1/act/Mul_218:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 9.552729606628418
+    min_value: -0.8347752094268799
+    scale: 0.040735311806201935
+    zero_point: -108
+  '@Sigmoid_/model.2/m.0/cv1/act/Sigmoid_222_Mul_/model.2/m.0/cv1/act/Mul_221:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 17.33524513244629
+    min_value: -0.27846455574035645
+    scale: 0.06907337158918381
+    zero_point: -124
+  '@Sigmoid_/model.5/act/Sigmoid_228_Mul_/model.5/act/Mul_224:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 4.165218830108643
+    min_value: -0.27846455574035645
+    scale: 0.017426209524273872
+    zero_point: -112
+  '@Sigmoid_/model.2/cv1/act/Sigmoid_230_Mul_/model.2/cv1/act/Mul_229:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 19.055374145507812
+    min_value: -0.5569172501564026
+    scale: 0.07691094279289246
+    zero_point: -121
+  '@Sigmoid_/model.1/act/Sigmoid_234_Mul_/model.1/act/Mul_232:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 50.23661804199219
+    min_value: -0.27846458554267883
+    scale: 0.19809836149215698
+    zero_point: -127
+  '@Sigmoid_/model.0/act/Sigmoid_236_Mul_/model.0/act/Mul_235:out0':
+    qtype: i8
+    quantizer: asymmetric_affine
+    rounding: rtne
+    max_value: 26.695266723632812
+    min_value: -0.27846458554267883
+    scale: 0.10577934235334396
+    zero_point: -125
   '@Initializer_/model.22/Constant_12_output_0_5:data':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 32.0
     min_value: 0.0
     scale: 0.125490203499794
-    zero_point: 0
+    zero_point: -128
   '@Conv_/model.22/dfl/conv/Conv_17:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 15.0
     min_value: 0.0
     scale: 0.05882352963089943
-    zero_point: 0
+    zero_point: -128
   '@Conv_/model.22/dfl/conv/Conv_17:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 404383.09356169443
-    min_value: -404383.09375
-    scale: 0.0001883055520011112
+    max_value: 404514.9060616331
+    min_value: -404514.90625
+    scale: 0.00018836693197954446
     zero_point: 0
   '@Conv_/model.22/cv2.0/cv2.0.2/Conv_29:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 0.308837890625
     min_value: -0.271728515625
     scale: 0.0022767309565097094
-    zero_point: 119
+    zero_point: -9
   '@Conv_/model.22/cv2.0/cv2.0.2/Conv_29:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 494196.3747698719
-    min_value: -494196.375
-    scale: 0.00023012812016531825
+    max_value: 494425.4997697652
+    min_value: -494425.5
+    scale: 0.00023023481480777264
     zero_point: 0
   '@Conv_/model.22/cv3.0/cv3.0.2/Conv_30:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 0.2391357421875
     min_value: -0.2197265625
     scale: 0.0017994600348174572
-    zero_point: 122
+    zero_point: -6
   '@Conv_/model.22/cv3.0/cv3.0.2/Conv_30:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 211020.53115173592
-    min_value: -211020.53125
-    scale: 9.826409223023802e-05
+    max_value: 211132.29677668386
+    min_value: -211132.296875
+    scale: 9.831613715505227e-05
     zero_point: 0
   '@Conv_/model.22/cv2.1/cv2.1.2/Conv_31:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 0.333740234375
     min_value: -0.32666015625
     scale: 0.002589805517345667
-    zero_point: 126
+    zero_point: -2
   '@Conv_/model.22/cv2.1/cv2.1.2/Conv_31:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 719216.4996650887
-    min_value: -719216.5
-    scale: 0.00033491128124296665
+    max_value: 719540.8746649376
+    min_value: -719540.875
+    scale: 0.0003350623301230371
     zero_point: 0
   '@Conv_/model.22/cv3.1/cv3.1.2/Conv_32:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 0.234375
     min_value: -0.288818359375
     scale: 0.0020517385564744473
-    zero_point: 141
+    zero_point: 13
   '@Conv_/model.22/cv3.1/cv3.1.2/Conv_32:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 949261.2495579658
-    min_value: -949261.25
-    scale: 0.0004420342156663537
+    max_value: 949594.9995578104
+    min_value: -949595.0
+    scale: 0.00044218963012099266
     zero_point: 0
   '@Conv_/model.22/cv2.2/cv2.2.2/Conv_33:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 0.319580078125
     min_value: -0.296142578125
     scale: 0.0024145985953509808
-    zero_point: 123
+    zero_point: -5
   '@Conv_/model.22/cv2.2/cv2.2.2/Conv_33:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 330085.68734629184
-    min_value: -330085.6875
-    scale: 0.00015370812616311014
+    max_value: 330388.3435961509
+    min_value: -330388.34375
+    scale: 0.00015384906146209687
     zero_point: 0
   '@Conv_/model.22/cv3.2/cv3.2.2/Conv_34:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 0.1934814453125
     min_value: -0.37109375
     scale: 0.002214020350947976
-    zero_point: 168
+    zero_point: 40
   '@Conv_/model.22/cv3.2/cv3.2.2/Conv_34:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 1158324.6244606131
-    min_value: -1158324.625
-    scale: 0.0005393869359977543
+    max_value: 1158731.6244604236
+    min_value: -1158731.625
+    scale: 0.0005395764601416886
     zero_point: 0
   '@Conv_/model.22/cv2.0/cv2.0.1/conv/Conv_41:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 5.58843994140625
     min_value: -4.7789082527160645
     scale: 0.04065626487135887
-    zero_point: 118
+    zero_point: -10
   '@Conv_/model.22/cv2.0/cv2.0.1/conv/Conv_41:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 1554101.1242763153
-    min_value: -1554101.125
-    scale: 0.0007236847304739058
+    max_value: 1555677.3742755812
+    min_value: -1555677.375
+    scale: 0.0007244187290780246
     zero_point: 0
   '@Conv_/model.22/cv3.0/cv3.0.1/conv/Conv_43:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 7.0061798095703125
     min_value: -11.215615272521973
     scale: 0.07145801931619644
-    zero_point: 157
+    zero_point: 29
   '@Conv_/model.22/cv3.0/cv3.0.1/conv/Conv_43:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 1845313.1241407092
-    min_value: -1845313.125
-    scale: 0.0008592908852733672
+    max_value: 1844730.8741409802
+    min_value: -1844730.875
+    scale: 0.0008590197539888322
     zero_point: 0
   '@Conv_/model.22/cv2.1/cv2.1.1/conv/Conv_45:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 3.71858549118042
     min_value: -2.5378293991088867
     scale: 0.024534961208701134
-    zero_point: 103
+    zero_point: -25
   '@Conv_/model.22/cv2.1/cv2.1.1/conv/Conv_45:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 1256369.6244149574
-    min_value: -1256369.625
-    scale: 0.0005850426969118416
+    max_value: 1256717.999414795
+    min_value: -1256718.0
+    scale: 0.0005852049216628075
     zero_point: 0
   '@Conv_/model.22/cv3.1/cv3.1.1/conv/Conv_47:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 13.361247062683105
     min_value: -11.143280029296875
     scale: 0.09609618782997131
-    zero_point: 116
+    zero_point: -12
   '@Conv_/model.22/cv3.1/cv3.1.1/conv/Conv_47:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 3938752.998165875
-    min_value: -3938753.0
-    scale: 0.00183412479236722
+    max_value: 3937951.498166248
+    min_value: -3937951.5
+    scale: 0.0018337515648454428
     zero_point: 0
   '@Conv_/model.22/cv2.2/cv2.2.1/conv/Conv_49:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 2.1326394081115723
     min_value: -2.4030568599700928
     scale: 0.017787043005228043
-    zero_point: 135
+    zero_point: 7
   '@Conv_/model.22/cv2.2/cv2.2.1/conv/Conv_49:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 1107602.6244842324
-    min_value: -1107602.625
-    scale: 0.0005157676641829312
+    max_value: 1108009.249484043
+    min_value: -1108009.25
+    scale: 0.0005159570137038827
     zero_point: 0
   '@Conv_/model.22/cv3.2/cv3.2.1/conv/Conv_51:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 8.512138366699219
     min_value: -10.214566230773926
     scale: 0.07343805581331253
-    zero_point: 139
+    zero_point: 11
   '@Conv_/model.22/cv3.2/cv3.2.1/conv/Conv_51:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 4556634.497878152
-    min_value: -4556634.5
-    scale: 0.002121848287060857
+    max_value: 4558944.497877076
+    min_value: -4558944.5
+    scale: 0.0021229239646345377
     zero_point: 0
   '@Conv_/model.22/cv2.0/cv2.0.0/conv/Conv_65:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 1.0869429111480713
     min_value: -1.1894344091415405
     scale: 0.008926969021558762
-    zero_point: 133
+    zero_point: 5
   '@Conv_/model.22/cv2.0/cv2.0.0/conv/Conv_65:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 264295.18737692793
-    min_value: -264295.1875
-    scale: 0.00012307203724049032
+    max_value: 264341.62487690634
+    min_value: -264341.625
+    scale: 0.00012309366138651967
     zero_point: 0
   '@Conv_/model.22/cv3.0/cv3.0.0/conv/Conv_67:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 0.8319294452667236
     min_value: -0.9858084321022034
     scale: 0.007128383498638868
-    zero_point: 138
+    zero_point: 10
   '@Conv_/model.22/cv3.0/cv3.0.0/conv/Conv_67:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 211045.60927672422
-    min_value: -211045.609375
-    scale: 9.827577014220878e-05
+    max_value: 211082.68740170696
+    min_value: -211082.6875
+    scale: 9.829303598962724e-05
     zero_point: 0
   '@Conv_/model.22/cv2.1/cv2.1.0/conv/Conv_69:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 1.5532375574111938
     min_value: -1.9935554265975952
     scale: 0.013908992521464825
-    zero_point: 143
+    zero_point: 15
   '@Conv_/model.22/cv2.1/cv2.1.0/conv/Conv_69:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 401157.8435631963
-    min_value: -401157.84375
-    scale: 0.00018680367793422192
+    max_value: 401291.74981313397
+    min_value: -401291.75
+    scale: 0.00018686603289097548
     zero_point: 0
   '@Conv_/model.22/cv3.1/cv3.1.0/conv/Conv_71:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 0.7040805220603943
     min_value: -1.8995636701583862
     scale: 0.010210368782281876
-    zero_point: 186
+    zero_point: 58
   '@Conv_/model.22/cv3.1/cv3.1.0/conv/Conv_71:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 294483.56236287043
-    min_value: -294483.5625
-    scale: 0.0001371295948047191
+    max_value: 294581.8436128246
+    min_value: -294581.84375
+    scale: 0.0001371753605781123
     zero_point: 0
   '@Conv_/model.22/cv2.2/cv2.2.0/conv/Conv_73:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 0.9490423202514648
     min_value: -1.0865188837051392
     scale: 0.007982592098414898
-    zero_point: 136
+    zero_point: 8
   '@Conv_/model.22/cv2.2/cv2.2.0/conv/Conv_73:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 465484.0310332421
-    min_value: -465484.03125
-    scale: 0.00021675789321307093
+    max_value: 465581.5622831967
+    min_value: -465581.5625
+    scale: 0.00021680330974049866
     zero_point: 0
   '@Conv_/model.22/cv3.2/cv3.2.0/conv/Conv_75:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 0.5895648002624512
     min_value: -2.059037446975708
     scale: 0.010386675596237183
-    zero_point: 198
+    zero_point: 70
   '@Conv_/model.22/cv3.2/cv3.2.0/conv/Conv_75:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 605671.874717962
-    min_value: -605671.875
-    scale: 0.00028203794499859214
+    max_value: 605798.812217903
+    min_value: -605798.8125
+    scale: 0.00028209705487824976
     zero_point: 0
   '@Conv_/model.15/cv2/conv/Conv_77:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 0.9897594451904297
     min_value: -1.1369895935058594
     scale: 0.008340192027390003
-    zero_point: 136
+    zero_point: 8
   '@Conv_/model.15/cv2/conv/Conv_77:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 348313.249837804
-    min_value: -348313.25
-    scale: 0.0001621959963813424
+    max_value: 348364.0310877804
+    min_value: -348364.03125
+    scale: 0.0001622196432435885
     zero_point: 0
   '@Conv_/model.18/cv2/conv/Conv_79:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 0.9424169659614563
     min_value: -1.6716207265853882
     scale: 0.010251128114759922
-    zero_point: 163
+    zero_point: 35
   '@Conv_/model.18/cv2/conv/Conv_79:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 703991.8746721782
-    min_value: -703991.875
-    scale: 0.00032782176276668906
+    max_value: 704047.6246721523
+    min_value: -704047.625
+    scale: 0.00032784772338345647
     zero_point: 0
   '@Conv_/model.21/cv2/conv/Conv_81:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 1.266503095626831
     min_value: -2.316641330718994
     scale: 0.014051546342670918
-    zero_point: 165
+    zero_point: 37
   '@Conv_/model.21/cv2/conv/Conv_81:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 809948.7496228382
-    min_value: -809948.75
-    scale: 0.0003771617775782943
+    max_value: 809835.6871228908
+    min_value: -809835.6875
+    scale: 0.00037710912874899805
     zero_point: 0
   '@Conv_/model.15/m.0/cv2/conv/Conv_86:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 1.1824491024017334
     min_value: -1.24504554271698
     scale: 0.009519586339592934
-    zero_point: 131
+    zero_point: 3
   '@Conv_/model.15/m.0/cv2/conv/Conv_86:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 257601.07800504516
-    min_value: -257601.078125
-    scale: 0.00011995484965154901
+    max_value: 257599.0467550461
+    min_value: -257599.046875
+    scale: 0.00011995390377705917
     zero_point: 0
   '@Conv_/model.18/m.0/cv2/conv/Conv_88:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 1.8943030834197998
     min_value: -2.22118878364563
     scale: 0.016139183193445206
-    zero_point: 138
+    zero_point: 10
   '@Conv_/model.18/m.0/cv2/conv/Conv_88:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 369024.5310781596
-    min_value: -369024.53125
-    scale: 0.00017184043827001005
+    max_value: 369054.7185781455
+    min_value: -369054.71875
+    scale: 0.00017185449542012066
     zero_point: 0
   '@Conv_/model.21/m.0/cv2/conv/Conv_90:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 1.076561450958252
     min_value: -1.7519993782043457
     scale: 0.011092395521700382
-    zero_point: 158
+    zero_point: 30
   '@Conv_/model.21/m.0/cv2/conv/Conv_90:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 404001.0310618724
-    min_value: -404001.03125
-    scale: 0.0001881276402855292
+    max_value: 404038.8123118548
+    min_value: -404038.8125
+    scale: 0.0001881452335510403
     zero_point: 0
   '@Conv_/model.15/m.0/cv1/conv/Conv_98:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 0.6864017248153687
     min_value: -0.6995877623558044
     scale: 0.00543525256216526
-    zero_point: 129
+    zero_point: 1
   '@Conv_/model.15/m.0/cv1/conv/Conv_98:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 226993.62489429786
-    min_value: -226993.625
-    scale: 0.00010570214362815022
+    max_value: 227026.71864428243
+    min_value: -227026.71875
+    scale: 0.00010571755410637707
     zero_point: 0
   '@Conv_/model.18/m.0/cv1/conv/Conv_100:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 0.6791992783546448
     min_value: -0.7295791506767273
     scale: 0.005524621345102787
-    zero_point: 132
+    zero_point: 4
   '@Conv_/model.18/m.0/cv1/conv/Conv_100:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 379401.03107332764
-    min_value: -379401.03125
-    scale: 0.0001766723726177588
+    max_value: 379431.0935733136
+    min_value: -379431.09375
+    scale: 0.0001766863715602085
     zero_point: 0
   '@Conv_/model.21/m.0/cv1/conv/Conv_102:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 0.8403990268707275
     min_value: -0.6637275218963623
     scale: 0.005898535717278719
-    zero_point: 113
+    zero_point: -15
   '@Conv_/model.21/m.0/cv1/conv/Conv_102:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 339998.9998416756
-    min_value: -339999.0
-    scale: 0.00015832437202334404
+    max_value: 339951.53109169775
+    min_value: -339951.53125
+    scale: 0.00015830226766411215
     zero_point: 0
   '@Conv_/model.15/cv1/conv/Conv_107:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 1.132891297340393
     min_value: -0.9140687584877014
     scale: 0.008027294650673866
-    zero_point: 114
+    zero_point: -14
   '@Conv_/model.15/cv1/conv/Conv_107:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 415433.1560565489
-    min_value: -415433.15625
-    scale: 0.00019345113832969218
+    max_value: 415420.2810565549
+    min_value: -415420.28125
+    scale: 0.0001934451429406181
     zero_point: 0
   '@Conv_/model.18/cv1/conv/Conv_109:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 1.021100640296936
     min_value: -1.1224318742752075
     scale: 0.008406009525060654
-    zero_point: 134
+    zero_point: 6
   '@Conv_/model.18/cv1/conv/Conv_109:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 435032.62479742215
-    min_value: -435032.625
-    scale: 0.000202577852178365
+    max_value: 435019.12479742843
+    min_value: -435019.125
+    scale: 0.00020257156575098634
     zero_point: 0
   '@Conv_/model.21/cv1/conv/Conv_111:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 1.3393068313598633
     min_value: -1.526192307472229
     scale: 0.01123725064098835
-    zero_point: 136
+    zero_point: 8
   '@Conv_/model.21/cv1/conv/Conv_111:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 522326.43725677277
-    min_value: -522326.4375
-    scale: 0.0002432272012811154
+    max_value: 522653.5622566205
+    min_value: -522653.5625
+    scale: 0.00024337953072972596
     zero_point: 0
   '@Conv_/model.4/cv2/conv/Conv_120:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 0.7004830837249756
     min_value: -0.7187325954437256
     scale: 0.005565551575273275
-    zero_point: 129
+    zero_point: 1
   '@Conv_/model.4/cv2/conv/Conv_120:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 402016.8748127963
-    min_value: -402016.875
-    scale: 0.0001872036955319345
+    max_value: 402001.2498128036
+    min_value: -402001.25
+    scale: 0.00018719641957432032
     zero_point: 0
   '@Conv_/model.12/cv2/conv/Conv_123:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 1.1280097961425781
     min_value: -1.0205799341201782
     scale: 0.00842584203928709
-    zero_point: 121
+    zero_point: -7
   '@Conv_/model.12/cv2/conv/Conv_123:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 436731.43729663105
-    min_value: -436731.4375
-    scale: 0.00020336892339400947
+    max_value: 436822.81229658856
+    min_value: -436822.8125
+    scale: 0.00020341147319413722
     zero_point: 0
   '@Conv_/model.9/cv2/conv/Conv_126:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 0.5700380206108093
     min_value: -0.8964391946792603
     scale: 0.005750890821218491
-    zero_point: 156
+    zero_point: 28
   '@Conv_/model.9/cv2/conv/Conv_126:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 290834.6873645695
-    min_value: -290834.6875
-    scale: 0.00013543045497499406
+    max_value: 290862.12486455677
+    min_value: -290862.125
+    scale: 0.00013544323155656457
     zero_point: 0
   '@Conv_/model.16/conv/Conv_131:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 0.7580275535583496
     min_value: -0.5613803863525391
     scale: 0.005174148827791214
-    zero_point: 108
+    zero_point: -20
   '@Conv_/model.16/conv/Conv_131:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 153187.79680366637
-    min_value: -153187.796875
-    scale: 7.133362669264897e-05
+    max_value: 153214.71867865382
+    min_value: -153214.71875
+    scale: 7.134616316761821e-05
     zero_point: 0
   '@Conv_/model.19/conv/Conv_135:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 0.46300646662712097
     min_value: -0.4700160622596741
     scale: 0.0036589116789400578
-    zero_point: 128
+    zero_point: 0
   '@Conv_/model.19/conv/Conv_135:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 105528.92963835926
-    min_value: -105528.9296875
-    scale: 4.914073724648915e-05
+    max_value: 105564.15620084286
+    min_value: -105564.15625
+    scale: 4.915714089293032e-05
     zero_point: 0
   '@Conv_/model.4/m.1/cv2/conv/Conv_145:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 1.8547719717025757
     min_value: -1.9899173974990845
     scale: 0.015077212825417519
-    zero_point: 132
+    zero_point: 4
   '@Conv_/model.4/m.1/cv2/conv/Conv_145:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 416645.5623059843
-    min_value: -416645.5625
-    scale: 0.00019401570898480713
+    max_value: 416903.6248058641
+    min_value: -416903.625
+    scale: 0.000194135878700763
     zero_point: 0
   '@Conv_/model.12/m.0/cv2/conv/Conv_146:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 1.297121524810791
     min_value: -1.0455443859100342
     scale: 0.009186925366520882
-    zero_point: 114
+    zero_point: -14
   '@Conv_/model.12/m.0/cv2/conv/Conv_146:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 267669.2186253568
-    min_value: -267669.21875
-    scale: 0.00012464319297578186
+    max_value: 267618.5311253804
+    min_value: -267618.53125
+    scale: 0.00012461958976928145
     zero_point: 0
   '@Conv_/model.9/cv1/conv/Conv_150:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 0.6397992372512817
     min_value: -1.0563955307006836
     scale: 0.006651744246482849
-    zero_point: 159
+    zero_point: 31
   '@Conv_/model.9/cv1/conv/Conv_150:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 345553.34358908917
-    min_value: -345553.34375
-    scale: 0.00016091081488411874
+    max_value: 345626.18733905524
+    min_value: -345626.1875
+    scale: 0.00016094473539851606
     zero_point: 0
   '@Conv_/model.8/cv2/conv/Conv_154:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 0.6306453347206116
     min_value: -0.4861299693584442
     scale: 0.0043795108795166016
-    zero_point: 111
+    zero_point: -17
   '@Conv_/model.8/cv2/conv/Conv_154:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 356742.28108387894
-    min_value: -356742.28125
-    scale: 0.00016612106992397457
+    max_value: 357030.0935837449
+    min_value: -357030.09375
+    scale: 0.00016625509306322783
     zero_point: 0
   '@Conv_/model.4/m.0/cv2/conv/Conv_155:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 0.9897183775901794
     min_value: -1.3933839797973633
     scale: 0.00934549979865551
-    zero_point: 149
+    zero_point: 21
   '@Conv_/model.4/m.0/cv2/conv/Conv_155:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 308969.12485612504
-    min_value: -308969.125
-    scale: 0.0001438749604858458
+    max_value: 309044.31235609006
+    min_value: -309044.3125
+    scale: 0.00014390997239388525
     zero_point: 0
   '@Conv_/model.12/m.0/cv1/conv/Conv_159:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 0.5657696723937988
     min_value: -0.5875546336174011
     scale: 0.004522840492427349
-    zero_point: 130
+    zero_point: 2
   '@Conv_/model.12/m.0/cv1/conv/Conv_159:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 234429.5936408352
-    min_value: -234429.59375
-    scale: 0.00010916478640865535
+    max_value: 234478.62489081238
+    min_value: -234478.625
+    scale: 0.00010918761836364865
     zero_point: 0
   '@Conv_/model.4/m.0/cv1/conv/Conv_163:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 0.8716698884963989
     min_value: -0.9877771139144897
     scale: 0.007291948888450861
-    zero_point: 135
+    zero_point: 7
   '@Conv_/model.4/m.0/cv1/conv/Conv_163:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 526719.8747547269
-    min_value: -526719.875
-    scale: 0.0002452730550430715
+    max_value: 526699.3747547364
+    min_value: -526699.375
+    scale: 0.0002452635089866817
     zero_point: 0
   '@Conv_/model.4/m.1/cv1/conv/Conv_165:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 0.5628997087478638
     min_value: -0.5630368590354919
     scale: 0.004415437113493681
-    zero_point: 128
+    zero_point: 0
   '@Conv_/model.4/m.1/cv1/conv/Conv_165:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 318940.5936014817
-    min_value: -318940.59375
-    scale: 0.0001485182874603197
+    max_value: 318928.18735148746
+    min_value: -318928.1875
+    scale: 0.00014851251034997404
     zero_point: 0
   '@Conv_/model.12/cv1/conv/Conv_167:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 1.6714457273483276
     min_value: -1.4326226711273193
     scale: 0.012172816321253777
-    zero_point: 118
+    zero_point: -10
   '@Conv_/model.12/cv1/conv/Conv_167:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 565813.1247365228
-    min_value: -565813.125
-    scale: 0.0002634772681631148
+    max_value: 566167.4997363577
+    min_value: -566167.5
+    scale: 0.00026364228688180447
     zero_point: 0
   '@Conv_/model.4/cv1/conv/Conv_173:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 1.7703351974487305
     min_value: -1.9013549089431763
     scale: 0.014398784376680851
-    zero_point: 132
+    zero_point: 4
   '@Conv_/model.4/cv1/conv/Conv_173:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 693997.2496768323
-    min_value: -693997.25
-    scale: 0.00032316765282303095
+    max_value: 694696.8746765065
+    min_value: -694696.875
+    scale: 0.0003234934411011636
     zero_point: 0
   '@Conv_/model.6/cv2/conv/Conv_180:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 0.4773390293121338
     min_value: -0.5057917237281799
     scale: 0.0038554146885871887
-    zero_point: 131
+    zero_point: 3
   '@Conv_/model.6/cv2/conv/Conv_180:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 337339.593592914
-    min_value: -337339.59375
-    scale: 0.0001570859894854948
+    max_value: 337265.5623429485
+    min_value: -337265.5625
+    scale: 0.0001570515159983188
     zero_point: 0
   '@Conv_/model.8/m.0/cv2/conv/Conv_182:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 1.0760048627853394
     min_value: -1.6542047262191772
     scale: 0.01070670410990715
-    zero_point: 155
+    zero_point: 27
   '@Conv_/model.8/m.0/cv2/conv/Conv_182:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 717871.8746657148
-    min_value: -717871.875
-    scale: 0.0003342851414345205
+    max_value: 718115.1871656015
+    min_value: -718115.1875
+    scale: 0.00033439844264648855
     zero_point: 0
   '@Conv_/model.3/conv/Conv_184:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 0.4469853937625885
     min_value: -0.497659832239151
     scale: 0.0037044910714030266
-    zero_point: 134
+    zero_point: 6
   '@Conv_/model.3/conv/Conv_184:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 215329.93739972918
-    min_value: -215329.9375
-    scale: 0.00010027081589214504
+    max_value: 215730.48427454266
+    min_value: -215730.484375
+    scale: 0.00010045733506558463
     zero_point: 0
   '@Conv_/model.8/m.0/cv1/conv/Conv_189:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 0.7608733177185059
     min_value: -0.8481332063674927
     scale: 0.006309829652309418
-    zero_point: 134
+    zero_point: 6
   '@Conv_/model.8/m.0/cv1/conv/Conv_189:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 513980.4372606592
-    min_value: -513980.4375
-    scale: 0.00023934079217724502
+    max_value: 514395.1247604661
+    min_value: -514395.125
+    scale: 0.00023953389609232545
     zero_point: 0
   '@Conv_/model.2/cv2/conv/Conv_191:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 0.8808803558349609
     min_value: -1.0870965719223022
     scale: 0.007717556785792112
-    zero_point: 141
+    zero_point: 13
   '@Conv_/model.2/cv2/conv/Conv_191:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 1271445.7494079368
-    min_value: -1271445.75
-    scale: 0.000592063064686954
+    max_value: 1274670.2494064355
+    min_value: -1274670.25
+    scale: 0.0005935645895078778
     zero_point: 0
   '@Conv_/model.6/m.0/cv2/conv/Conv_200:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 0.8128645420074463
     min_value: -0.7978613972663879
     scale: 0.0063165719620883465
-    zero_point: 126
+    zero_point: -2
   '@Conv_/model.6/m.0/cv2/conv/Conv_200:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 280066.09361958405
-    min_value: -280066.09375
-    scale: 0.000130415937746875
+    max_value: 279962.8436196321
+    min_value: -279962.84375
+    scale: 0.00013036785821896046
     zero_point: 0
   '@Conv_/model.6/m.1/cv2/conv/Conv_202:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 2.4333903789520264
     min_value: -1.4407165050506592
     scale: 0.015192575752735138
-    zero_point: 95
+    zero_point: -33
   '@Conv_/model.6/m.1/cv2/conv/Conv_202:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 674843.9996857513
-    min_value: -674844.0
-    scale: 0.000314248725771904
+    max_value: 674842.437185752
+    min_value: -674842.4375
+    scale: 0.0003142479981761426
     zero_point: 0
   '@Conv_/model.8/cv1/conv/Conv_204:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 1.4964172840118408
     min_value: -1.440075159072876
     scale: 0.011515656486153603
-    zero_point: 125
+    zero_point: -3
   '@Conv_/model.8/cv1/conv/Conv_204:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 637040.6247033549
-    min_value: -637040.625
-    scale: 0.0002966451575048268
+    max_value: 637086.7497033334
+    min_value: -637086.75
+    scale: 0.00029666663613170385
     zero_point: 0
   '@Conv_/model.2/m.0/cv2/conv/Conv_213:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 0.8049448132514954
     min_value: -0.9087693095207214
     scale: 0.006720447447150946
-    zero_point: 135
+    zero_point: 7
   '@Conv_/model.2/m.0/cv2/conv/Conv_213:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 994576.7495368641
-    min_value: -994576.75
-    scale: 0.00046313588973134756
+    max_value: 996870.437035796
+    min_value: -996870.4375
+    scale: 0.00046420397120527923
     zero_point: 0
   '@Conv_/model.6/m.0/cv1/conv/Conv_215:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 1.4147828817367554
     min_value: -1.3357313871383667
     scale: 0.010786330327391624
-    zero_point: 124
+    zero_point: -4
   '@Conv_/model.6/m.0/cv1/conv/Conv_215:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 943778.187060519
-    min_value: -943778.1875
-    scale: 0.0004394809657242149
+    max_value: 943571.0620606155
+    min_value: -943571.0625
+    scale: 0.0004393845156300813
     zero_point: 0
   '@Conv_/model.6/m.1/cv1/conv/Conv_217:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 0.5799452662467957
     min_value: -0.7529179453849792
     scale: 0.005226914770901203
-    zero_point: 144
+    zero_point: 16
   '@Conv_/model.6/m.1/cv1/conv/Conv_217:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 457342.59353703324
-    min_value: -457342.59375
-    scale: 0.00021296674094628543
+    max_value: 457242.21853708
+    min_value: -457242.21875
+    scale: 0.0002129200001945719
     zero_point: 0
   '@Conv_/model.7/conv/Conv_219:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 0.5790148377418518
     min_value: -0.4525473117828369
     scale: 0.00404534162953496
-    zero_point: 112
+    zero_point: -16
   '@Conv_/model.7/conv/Conv_219:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 188034.3280374397
-    min_value: -188034.328125
-    scale: 8.756030729273334e-05
+    max_value: 188152.09366238484
+    min_value: -188152.09375
+    scale: 8.761514618527144e-05
     zero_point: 0
   '@Conv_/model.6/cv1/conv/Conv_223:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 1.2786611318588257
     min_value: -2.108677625656128
     scale: 0.013283681124448776
-    zero_point: 159
+    zero_point: 31
   '@Conv_/model.6/cv1/conv/Conv_223:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 497044.0935185458
-    min_value: -497044.09375
-    scale: 0.00023145419254433364
+    max_value: 497108.5622685158
+    min_value: -497108.5625
+    scale: 0.00023148421314544976
     zero_point: 0
   '@Conv_/model.2/m.0/cv1/conv/Conv_225:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 2.9873321056365967
     min_value: -2.807512044906616
     scale: 0.022724879905581474
-    zero_point: 124
+    zero_point: -4
   '@Conv_/model.2/m.0/cv1/conv/Conv_225:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 3743859.9982566293
-    min_value: -3743860.0
-    scale: 0.0017433706670999527
+    max_value: 3753354.4982522083
+    min_value: -3753354.5
+    scale: 0.001747791888192296
     zero_point: 0
   '@Conv_/model.5/conv/Conv_227:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 0.5133389234542847
     min_value: -0.6675169467926025
     scale: 0.00463080732151866
-    zero_point: 144
+    zero_point: 16
   '@Conv_/model.5/conv/Conv_227:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 239656.1873884014
-    min_value: -239656.1875
-    scale: 0.00011159860878251493
+    max_value: 239648.76551340485
+    min_value: -239648.765625
+    scale: 0.00011159515270264819
     zero_point: 0
   '@Conv_/model.2/cv1/conv/Conv_231:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 0.5066250562667847
     min_value: -1.228455662727356
     scale: 0.006804238073527813
-    zero_point: 181
+    zero_point: 53
   '@Conv_/model.2/cv1/conv/Conv_231:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 2882480.4986577407
-    min_value: -2882480.5
-    scale: 0.001342259580269456
+    max_value: 2894611.2486520917
+    min_value: -2894611.25
+    scale: 0.0013479084009304643
     zero_point: 0
   '@Conv_/model.1/conv/Conv_233:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 2.9464850425720215
     min_value: -2.7976701259613037
     scale: 0.022526098415255547
-    zero_point: 124
+    zero_point: -4
   '@Conv_/model.1/conv/Conv_233:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 5090542.997629531
-    min_value: -5090543.0
-    scale: 0.002370468806475401
+    max_value: 5117014.997617204
+    min_value: -5117015.0
+    scale: 0.0023827957920730114
     zero_point: 0
   '@Conv_/model.0/conv/Conv_237:weight':
-    qtype: u8
+    qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 14.209593772888184
     min_value: -17.494367599487305
     scale: 0.12432925403118134
-    zero_point: 141
+    zero_point: 13
   '@Conv_/model.0/conv/Conv_237:bias':
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 1041280.624515116
-    min_value: -1041280.625
-    scale: 0.0004848840762861073
+    max_value: 1047047.7495124304
+    min_value: -1047047.75
+    scale: 0.00048756960313767195
     zero_point: 0
-customized_quantize_layers: {}
+customized_quantize_layers:
+    Concat_/model.22/Concat_5_1: dynamic_fixed_point‑i16
