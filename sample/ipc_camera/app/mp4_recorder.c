@@ -153,6 +153,25 @@ int mp4_recorder_start(Mp4RecorderContext *recorder)
     }
     recorder->mux_created = 1;
 
+    /*
+     * 隧道Bind模式会由MPP自动建立“VENC通道 -> MUX视频流”映射；阶段8.1
+     * 使用非隧道SendVideoStreamSync，因此必须显式把VENC 0映射到stream 0。
+     * 如果缺少这一步，SetH264SpsPpsInfo找不到对应视频轨，部分SDK版本会在
+     * 第一个关键帧初始化MP4时访问无效的SPS/PPS节点并崩溃。
+     */
+    ret = AW_MPI_MUX_SetVeChnBindStreamId(recorder->config.mux_channel,
+                                           recorder->config.venc_channel,
+                                           0);
+    if (ret != SUCCESS) {
+        aloge("[MP4] Bind VENC channel to MUX stream failed: "
+              "venc=%d, stream=0, ret=%d",
+              recorder->config.venc_channel,
+              ret);
+        goto error;
+    }
+    alogd("[MP4] VENC-to-MUX mapping ready: venc=%d -> stream=0",
+          recorder->config.venc_channel);
+
     /* MP4的avcC解码配置需要SPS/PPS，必须在送入第一帧之前交给MUX。 */
     memset(&header, 0, sizeof(header));
     header.pBuffer = recorder->h264_header;
