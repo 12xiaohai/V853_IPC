@@ -53,8 +53,10 @@ sent to the MP4 muxer, closes the file cleanly, and produces a recording whose
 video and audio play correctly. Stage 8.2 now adds timestamp-based file names
 and 60-second MPP MUX file rotation. A dedicated worker handles next-file
 requests outside the MPP callback, and the minimum-duration policy switches on
-a key-frame boundary. Board validation of multiple consecutive segments is the
-current task; cyclic deletion and free-space management follow in Stage 8.3.
+a key-frame boundary. Board validation confirmed that both the automatically
+completed segment and the final partial segment contain playable video and
+audio. Stage 8.2 is complete; cyclic deletion and free-space management follow
+in Stage 8.3.
 Build in a Linux environment:
 
 ```sh
