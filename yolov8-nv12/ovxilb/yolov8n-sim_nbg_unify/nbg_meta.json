@@ -1,0 +1,46 @@
+{
+    "Inputs": {
+        "images_238_0": {
+            "name": "images_0",
+            "shape": [
+                1,
+                1,
+                320,
+                320
+            ],
+            "format": "nchw",
+            "dtype": "uint8"
+        },
+        "images_238_1": {
+            "name": "images_1",
+            "shape": [
+                1,
+                1,
+                160,
+                320
+            ],
+            "format": "nchw",
+            "dtype": "uint8"
+        }
+    },
+    "Outputs": {
+        "attach_Concat_/model.22/Concat_5/out0_0": {
+            "name": "attach_Concat_/model.22/Concat_5/out0",
+            "shape": [
+                1,
+                84,
+                2100
+            ],
+            "format": "nchw",
+            "quantizer": "asymmetric_affine",
+            "quantize": {
+                "qtype": "u8",
+                "max_value": 418.78179931640625,
+                "min_value": 0.0,
+                "scale": 1.6422815322875977,
+                "zero_point": 0
+            }
+        }
+    },
+    "Recurrent_connections": {}
+}

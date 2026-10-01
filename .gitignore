@@ -4,3 +4,11 @@
 *.o
 *_strip
 .vscode/
+
+# Acuity/OVXLIB validation dumps and generated IDE metadata.
+# Keep the ONNX, conversion configuration, generated reference source,
+# nbg_meta.json, network_binary.nb, and the final models/yolov8n.nb.
+/yolov8-nv12/iter_*.tensor
+/yolov8-nv12/ovxilb/**/.project
+/yolov8-nv12/ovxilb/**/.cproject
+/yolov8-nv12/ovxilb/**/*.vcxproj
