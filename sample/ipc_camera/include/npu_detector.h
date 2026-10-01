@@ -22,6 +22,13 @@ typedef struct NpuDetectorConfig {
     int buffer_count;
     int timeout_ms;
     const char *model_path;
+    /*
+     * 可选的一次性调试抓帧路径。非NULL时保存第一张真正送入NPU的NV12帧；
+     * 只用于板端联调，确认后可在main.c中设为NULL关闭。
+     */
+    const char *debug_dump_path;
+    /* 第几个有效推理帧执行抓图；小于1时按第1帧处理。 */
+    unsigned int debug_dump_after_frames;
     float confidence_threshold;
     float nms_threshold;
     unsigned int log_interval_frames;

@@ -217,3 +217,27 @@ include，而是复制后的工具链系统头文件搜索顺序不完整。Make
 实测期间的少量 `video4 fifo overflow` 和Wi-Fi `TXRX_WRN` 没有造成应用层
 丢帧：RTSP发送2796/2796、队列丢帧0、LCD提交/释放2804/2804。因此本次按
 非致命底层提示记录；只有频率持续升高或应用统计出现丢帧时才升级排查。
+
+### 11.4 UDP发送出现`Resource temporarily unavailable`
+
+阶段9.2联调期间，TinyServer底层连续输出：
+
+```text
+writeSocket(...), sendTo() error: ... Resource temporarily unavailable
+```
+
+本次共出现107次。退出时应用RTSP队列统计仍为视频`451/451`、音频`346/346`、
+两条队列`dropped=0`，说明编码帧已经从应用队列完整交给TinyServer；失败发生在
+TinyServer向RTSP客户端发送UDP/RTP数据时。常见原因是Wi-Fi瞬时拥塞、客户端读取
+不及时或内核套接字发送缓存暂时写满（`EAGAIN`）。
+
+验证时优先使用TCP传输：
+
+```sh
+ffplay -rtsp_transport tcp rtsp://<board-ip>:8554/ch0
+```
+
+VLC可在“输入/编解码器”的实时传输设置中选择RTP over RTSP (TCP)。如果TCP正常
+而UDP持续报错，应归类为UDP/Wi-Fi传输问题，不应误判为NPU、VENC或应用RTSP队列
+故障。若必须使用UDP，可进一步降低当前5 Mbit/s视频码率、改善Wi-Fi信号或调整
+套接字发送缓存。

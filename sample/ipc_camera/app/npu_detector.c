@@ -21,6 +21,7 @@
 struct NpuDetectorContext {
     NpuDetectorConfig config;
     char model_path[256];
+    char debug_dump_path[256];
 
     pthread_t thread_id;
     pthread_mutex_t result_mutex;
@@ -35,6 +36,7 @@ struct NpuDetectorContext {
     int channel_enabled;
 
     int awnn_initialized;
+    int debug_frame_dumped;
     Awnn_Context_t *network;
     unsigned char *input_buffer;
     size_t y_plane_size;
@@ -45,6 +47,7 @@ struct NpuDetectorContext {
     unsigned long long skipped_frames;
     unsigned long long last_inference_pts_us;
     unsigned long long inference_failures;
+    int last_logged_detection_count;
     NpuDetectionSnapshot latest;
 };
 
@@ -164,6 +167,50 @@ static void log_detection_result(const NpuDetectorContext *detector,
 }
 
 /*
+ * 保存一张“实际送入AWNN”的输入帧。文件写入发生在VI源帧已经Release之后，
+ * 因此即使UDISK较慢，也不会长期占用MPP采集缓冲。
+ */
+static void dump_debug_input_once(NpuDetectorContext *detector)
+{
+    FILE *file;
+    size_t written;
+
+    if (detector->debug_frame_dumped ||
+        detector->config.debug_dump_path == NULL ||
+        detector->config.debug_dump_path[0] == '\0' ||
+        detector->inferred_frames <
+            detector->config.debug_dump_after_frames) {
+        return;
+    }
+
+    /* 无论成功或失败都只尝试一次，避免存储故障导致每帧重复打开文件。 */
+    detector->debug_frame_dumped = 1;
+    file = fopen(detector->config.debug_dump_path, "wb");
+    if (file == NULL) {
+        aloge("[NPU] Open debug NV12 dump failed: %s",
+              detector->config.debug_dump_path);
+        return;
+    }
+    written = fwrite(detector->input_buffer,
+                     1U,
+                     detector->input_buffer_size,
+                     file);
+    if (fclose(file) != 0 || written != detector->input_buffer_size) {
+        aloge("[NPU] Write debug NV12 dump failed: file=%s, bytes=%zu/%zu",
+              detector->config.debug_dump_path,
+              written,
+              detector->input_buffer_size);
+        return;
+    }
+    alogd("[NPU] Debug input saved: file=%s, format=NV12, size=%dx%d, "
+          "bytes=%zu",
+          detector->config.debug_dump_path,
+          detector->config.width,
+          detector->config.height,
+          detector->input_buffer_size);
+}
+
+/*
  * 实时推理线程：
  *   1. 从专用 VIPP 8 取一帧 320x320 NV12；
  *   2. 将 Y、UV 两个平面复制到连续输入缓存；
@@ -265,6 +312,8 @@ static void *npu_detector_thread(void *argument)
                   frame.mId);
         }
 
+        dump_debug_input_once(detector);
+
         input_planes[0] = detector->input_buffer;
         input_planes[1] = detector->input_buffer + detector->y_plane_size;
         awnn_set_input_buffers(detector->network, input_planes);
@@ -302,8 +351,12 @@ static void *npu_detector_thread(void *argument)
                                  frame_pts_us,
                                  end_us >= start_us ? end_us - start_us : 0U);
 
-        /* 第一帧必打日志，之后按配置间隔输出，避免 10 fps 持续刷屏。 */
+        /*
+         * person数量发生变化时立即输出，便于板端验证目标出现/消失；数量不变时
+         * 只按固定间隔输出，避免10 FPS持续刷屏。
+         */
         if (detector->inferred_frames == 1U ||
+            detection_count != detector->last_logged_detection_count ||
             (detector->config.log_interval_frames > 0U &&
              detector->inferred_frames %
                      detector->config.log_interval_frames ==
@@ -312,6 +365,7 @@ static void *npu_detector_thread(void *argument)
                                  detections,
                                  detection_count,
                                  end_us >= start_us ? end_us - start_us : 0U);
+            detector->last_logged_detection_count = detection_count;
         }
     }
 
@@ -343,11 +397,24 @@ NpuDetectorContext *npu_detector_create(const NpuDetectorConfig *config)
         return NULL;
     }
     detector->config = *config;
+    if (detector->config.debug_dump_after_frames == 0U) {
+        detector->config.debug_dump_after_frames = 1U;
+    }
     snprintf(detector->model_path,
              sizeof(detector->model_path),
              "%s",
              config->model_path);
     detector->config.model_path = detector->model_path;
+    if (config->debug_dump_path != NULL &&
+        config->debug_dump_path[0] != '\0') {
+        snprintf(detector->debug_dump_path,
+                 sizeof(detector->debug_dump_path),
+                 "%s",
+                 config->debug_dump_path);
+        detector->config.debug_dump_path = detector->debug_dump_path;
+    } else {
+        detector->config.debug_dump_path = NULL;
+    }
     if (pthread_mutex_init(&detector->result_mutex, NULL) != 0) {
         free(detector);
         return NULL;
@@ -474,6 +541,8 @@ int npu_detector_start(NpuDetectorContext *detector)
     detector->skipped_frames = 0U;
     detector->last_inference_pts_us = 0U;
     detector->inference_failures = 0U;
+    detector->last_logged_detection_count = -1;
+    detector->debug_frame_dumped = 0;
     memset(&detector->latest, 0, sizeof(detector->latest));
     thread_ret = pthread_create(&detector->thread_id,
                                 NULL,

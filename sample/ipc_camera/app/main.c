@@ -459,6 +459,10 @@ int main(int argc, char *argv[])
     npu_config.buffer_count = 3;
     npu_config.timeout_ms = 200;
     npu_config.model_path = "/lib/yolov8n.nb";
+    /* 阶段9.2诊断期间保存一张NPU真实输入；确认检测正常后可改为NULL。 */
+    npu_config.debug_dump_path = "/mnt/UDISK/npu_realtime_320x320.nv12";
+    /* 延迟到约第5秒抓图，给单人测试留出走进摄像头画面的时间。 */
+    npu_config.debug_dump_after_frames = 50U;
     npu_config.confidence_threshold = 0.25f;
     npu_config.nms_threshold = 0.45f;
     npu_config.log_interval_frames = 50U;
