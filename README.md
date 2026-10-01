@@ -47,7 +47,11 @@ NTP synchronization, the watermark shows the correct local date and updates
 once per second. Stage 8.1 adds an MPP MUX recorder that reuses the existing
 H.264 and AAC frames, preserves their original timestamps, waits for an H.264
 key frame, and writes `/mnt/UDISK/sample_demo.mp4` without creating a second
-encoder pipeline. Board validation of the MP4 output is the current task.
+encoder pipeline. Stage 8.1 has passed board validation: the recorder maps the
+video and audio stream IDs correctly, strips ADTS headers only from AAC samples
+sent to the MP4 muxer, closes the file cleanly, and produces a recording whose
+video and audio play correctly. The next task is Stage 8.2: timestamp-based file
+naming, timed file rotation, and cyclic storage management.
 Build in a Linux environment:
 
 ```sh
