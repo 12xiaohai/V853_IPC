@@ -231,7 +231,14 @@ vsi_nn_graph_t * vnn_CreateYolov8nSimprj
         goto error;
     }
     vsi_nn_SetGraphVersion( graph, VNN_VERSION_MAJOR, VNN_VERSION_MINOR, VNN_VERSION_PATCH );
-    vsi_nn_SetGraphInputs( graph, NULL, 1 );
+    if ( enable_pre_post_process )
+    {
+        vsi_nn_SetGraphInputs( graph, NULL, 2 );
+    }
+    else
+    {
+        vsi_nn_SetGraphInputs( graph, NULL, 1 );
+    }
     vsi_nn_SetGraphOutputs( graph, NULL, 1 );
 
 /*-----------------------------------------
@@ -3426,10 +3433,9 @@ vsi_nn_graph_t * vnn_CreateYolov8nSimprj
     attr.size[1] = 84;
     attr.size[2] = 1;
     attr.dim_num = 3;
-    attr.dtype.scale = 1.6421838998794556;
-    attr.dtype.zero_point = -128;
-    attr.dtype.qnt_type = VSI_NN_QNT_TYPE_AFFINE_ASYMMETRIC;
-    NEW_NORM_TENSOR(norm_tensor[0], attr, VSI_NN_TYPE_INT8);
+    attr.dtype.fl = 6;
+    attr.dtype.qnt_type = VSI_NN_QNT_TYPE_DFP;
+    NEW_NORM_TENSOR(norm_tensor[0], attr, VSI_NN_TYPE_INT16);
 
     /* @images_238:out0 */
     memset( &attr, 0, sizeof( attr ) );
@@ -4332,7 +4338,7 @@ vsi_nn_graph_t * vnn_CreateYolov8nSimprj
     memset( &attr, 0, sizeof( attr ) );
     attr.size[0] = 128;
     attr.dim_num = 1;
-    attr.dtype.scale = 0.00020257156575098634;
+    attr.dtype.scale = 0.00013372994726523757;
     attr.dtype.zero_point = 0;
     attr.dtype.qnt_type = VSI_NN_QNT_TYPE_AFFINE_ASYMMETRIC;
     NEW_CONST_TENSOR(const_tensor[84], attr, VSI_NN_TYPE_INT32, 228976, 512);
@@ -5457,15 +5463,15 @@ vsi_nn_graph_t * vnn_CreateYolov8nSimprj
 
     /* @Sigmoid_/model.12/cv2/act/Sigmoid_124_Mul_/model.12/cv2/act/Mul_116:out0 */
     memset( &attr, 0, sizeof( attr ) );
-    attr.dtype.scale = 0.02409842237830162;
-    attr.dtype.zero_point = -116;
+    attr.dtype.scale = 0.015908850356936455;
+    attr.dtype.zero_point = -110;
     attr.dtype.qnt_type = VSI_NN_QNT_TYPE_AFFINE_ASYMMETRIC;
     NEW_VIRTUAL_TENSOR(node[86]->output.tensors[0], attr, VSI_NN_TYPE_INT8);
 
     /* @Resize_/model.13/Resize_119:out0 */
     memset( &attr, 0, sizeof( attr ) );
-    attr.dtype.scale = 0.02409842237830162;
-    attr.dtype.zero_point = -116;
+    attr.dtype.scale = 0.015908850356936455;
+    attr.dtype.zero_point = -110;
     attr.dtype.qnt_type = VSI_NN_QNT_TYPE_AFFINE_ASYMMETRIC;
     NEW_VIRTUAL_TENSOR(node[87]->output.tensors[0], attr, VSI_NN_TYPE_INT8);
 
@@ -5590,8 +5596,8 @@ vsi_nn_graph_t * vnn_CreateYolov8nSimprj
 
     /* @Sigmoid_/model.16/act/Sigmoid_132_Mul_/model.16/act/Mul_122:out0 */
     memset( &attr, 0, sizeof( attr ) );
-    attr.dtype.scale = 0.02409842237830162;
-    attr.dtype.zero_point = -116;
+    attr.dtype.scale = 0.015908850356936455;
+    attr.dtype.zero_point = -110;
     attr.dtype.qnt_type = VSI_NN_QNT_TYPE_AFFINE_ASYMMETRIC;
     NEW_VIRTUAL_TENSOR(node[104]->output.tensors[0], attr, VSI_NN_TYPE_INT8);
 
@@ -5611,8 +5617,8 @@ vsi_nn_graph_t * vnn_CreateYolov8nSimprj
 
     /* @Concat_/model.17/Concat_115:out0 */
     memset( &attr, 0, sizeof( attr ) );
-    attr.dtype.scale = 0.02409842237830162;
-    attr.dtype.zero_point = -116;
+    attr.dtype.scale = 0.015908850356936455;
+    attr.dtype.zero_point = -110;
     attr.dtype.qnt_type = VSI_NN_QNT_TYPE_AFFINE_ASYMMETRIC;
     NEW_VIRTUAL_TENSOR(node[107]->output.tensors[0], attr, VSI_NN_TYPE_INT8);
 
@@ -5639,15 +5645,15 @@ vsi_nn_graph_t * vnn_CreateYolov8nSimprj
 
     /* @Conv_/model.22/cv2.0/cv2.0.2/Conv_29:out0 */
     memset( &attr, 0, sizeof( attr ) );
-    attr.dtype.scale = 0.18983963131904602;
-    attr.dtype.zero_point = 67;
+    attr.dtype.scale = 0.12305202335119247;
+    attr.dtype.zero_point = 35;
     attr.dtype.qnt_type = VSI_NN_QNT_TYPE_AFFINE_ASYMMETRIC;
     NEW_VIRTUAL_TENSOR(node[111]->output.tensors[0], attr, VSI_NN_TYPE_INT8);
 
     /* @Conv_/model.22/cv3.0/cv3.0.2/Conv_30:out0 */
     memset( &attr, 0, sizeof( attr ) );
-    attr.dtype.scale = 0.18983963131904602;
-    attr.dtype.zero_point = 67;
+    attr.dtype.scale = 0.12305202335119247;
+    attr.dtype.zero_point = 35;
     attr.dtype.qnt_type = VSI_NN_QNT_TYPE_AFFINE_ASYMMETRIC;
     NEW_VIRTUAL_TENSOR(node[112]->output.tensors[0], attr, VSI_NN_TYPE_INT8);
 
@@ -5660,8 +5666,8 @@ vsi_nn_graph_t * vnn_CreateYolov8nSimprj
 
     /* @Concat_/model.22/Concat_26:out0 */
     memset( &attr, 0, sizeof( attr ) );
-    attr.dtype.scale = 0.18983963131904602;
-    attr.dtype.zero_point = 67;
+    attr.dtype.scale = 0.12305202335119247;
+    attr.dtype.zero_point = 35;
     attr.dtype.qnt_type = VSI_NN_QNT_TYPE_AFFINE_ASYMMETRIC;
     NEW_VIRTUAL_TENSOR(node[114]->output.tensors[0], attr, VSI_NN_TYPE_INT8);
 
@@ -5681,8 +5687,8 @@ vsi_nn_graph_t * vnn_CreateYolov8nSimprj
 
     /* @Reshape_/model.22/Reshape_23:out0 */
     memset( &attr, 0, sizeof( attr ) );
-    attr.dtype.scale = 0.18983963131904602;
-    attr.dtype.zero_point = 67;
+    attr.dtype.scale = 0.12305202335119247;
+    attr.dtype.zero_point = 35;
     attr.dtype.qnt_type = VSI_NN_QNT_TYPE_AFFINE_ASYMMETRIC;
     NEW_VIRTUAL_TENSOR(node[116]->output.tensors[0], attr, VSI_NN_TYPE_INT8);
 
@@ -5821,15 +5827,15 @@ vsi_nn_graph_t * vnn_CreateYolov8nSimprj
 
     /* @Conv_/model.22/cv2.1/cv2.1.2/Conv_31:out0 */
     memset( &attr, 0, sizeof( attr ) );
-    attr.dtype.scale = 0.18983963131904602;
-    attr.dtype.zero_point = 67;
+    attr.dtype.scale = 0.14930500090122223;
+    attr.dtype.zero_point = 65;
     attr.dtype.qnt_type = VSI_NN_QNT_TYPE_AFFINE_ASYMMETRIC;
     NEW_VIRTUAL_TENSOR(node[136]->output.tensors[0], attr, VSI_NN_TYPE_INT8);
 
     /* @Conv_/model.22/cv3.1/cv3.1.2/Conv_32:out0 */
     memset( &attr, 0, sizeof( attr ) );
-    attr.dtype.scale = 0.18983963131904602;
-    attr.dtype.zero_point = 67;
+    attr.dtype.scale = 0.14930500090122223;
+    attr.dtype.zero_point = 65;
     attr.dtype.qnt_type = VSI_NN_QNT_TYPE_AFFINE_ASYMMETRIC;
     NEW_VIRTUAL_TENSOR(node[137]->output.tensors[0], attr, VSI_NN_TYPE_INT8);
 
@@ -5842,8 +5848,8 @@ vsi_nn_graph_t * vnn_CreateYolov8nSimprj
 
     /* @Concat_/model.22/Concat_1_27:out0 */
     memset( &attr, 0, sizeof( attr ) );
-    attr.dtype.scale = 0.18983963131904602;
-    attr.dtype.zero_point = 67;
+    attr.dtype.scale = 0.14930500090122223;
+    attr.dtype.zero_point = 65;
     attr.dtype.qnt_type = VSI_NN_QNT_TYPE_AFFINE_ASYMMETRIC;
     NEW_VIRTUAL_TENSOR(node[139]->output.tensors[0], attr, VSI_NN_TYPE_INT8);
 
@@ -5863,8 +5869,8 @@ vsi_nn_graph_t * vnn_CreateYolov8nSimprj
 
     /* @Reshape_/model.22/Reshape_1_24:out0 */
     memset( &attr, 0, sizeof( attr ) );
-    attr.dtype.scale = 0.18983963131904602;
-    attr.dtype.zero_point = 67;
+    attr.dtype.scale = 0.14930500090122223;
+    attr.dtype.zero_point = 65;
     attr.dtype.qnt_type = VSI_NN_QNT_TYPE_AFFINE_ASYMMETRIC;
     NEW_VIRTUAL_TENSOR(node[141]->output.tensors[0], attr, VSI_NN_TYPE_INT8);
 
@@ -5975,29 +5981,29 @@ vsi_nn_graph_t * vnn_CreateYolov8nSimprj
 
     /* @Conv_/model.22/cv2.2/cv2.2.2/Conv_33:out0 */
     memset( &attr, 0, sizeof( attr ) );
-    attr.dtype.scale = 0.18983963131904602;
-    attr.dtype.zero_point = 67;
+    attr.dtype.scale = 0.18739327788352966;
+    attr.dtype.zero_point = 70;
     attr.dtype.qnt_type = VSI_NN_QNT_TYPE_AFFINE_ASYMMETRIC;
     NEW_VIRTUAL_TENSOR(node[157]->output.tensors[0], attr, VSI_NN_TYPE_INT8);
 
     /* @Conv_/model.22/cv3.2/cv3.2.2/Conv_34:out0 */
     memset( &attr, 0, sizeof( attr ) );
-    attr.dtype.scale = 0.18983963131904602;
-    attr.dtype.zero_point = 67;
+    attr.dtype.scale = 0.18739327788352966;
+    attr.dtype.zero_point = 70;
     attr.dtype.qnt_type = VSI_NN_QNT_TYPE_AFFINE_ASYMMETRIC;
     NEW_VIRTUAL_TENSOR(node[158]->output.tensors[0], attr, VSI_NN_TYPE_INT8);
 
     /* @Concat_/model.22/Concat_2_28:out0 */
     memset( &attr, 0, sizeof( attr ) );
-    attr.dtype.scale = 0.18983963131904602;
-    attr.dtype.zero_point = 67;
+    attr.dtype.scale = 0.18739327788352966;
+    attr.dtype.zero_point = 70;
     attr.dtype.qnt_type = VSI_NN_QNT_TYPE_AFFINE_ASYMMETRIC;
     NEW_VIRTUAL_TENSOR(node[159]->output.tensors[0], attr, VSI_NN_TYPE_INT8);
 
     /* @Reshape_/model.22/Reshape_2_25:out0 */
     memset( &attr, 0, sizeof( attr ) );
-    attr.dtype.scale = 0.18983963131904602;
-    attr.dtype.zero_point = 67;
+    attr.dtype.scale = 0.18739327788352966;
+    attr.dtype.zero_point = 70;
     attr.dtype.qnt_type = VSI_NN_QNT_TYPE_AFFINE_ASYMMETRIC;
     NEW_VIRTUAL_TENSOR(node[160]->output.tensors[0], attr, VSI_NN_TYPE_INT8);
 
@@ -6031,7 +6037,7 @@ vsi_nn_graph_t * vnn_CreateYolov8nSimprj
 
     /* @Sigmoid_/model.22/Sigmoid_3:out0 */
     memset( &attr, 0, sizeof( attr ) );
-    attr.dtype.scale = 1.6421838998794556;
+    attr.dtype.scale = 0.003364588599652052;
     attr.dtype.zero_point = -128;
     attr.dtype.qnt_type = VSI_NN_QNT_TYPE_AFFINE_ASYMMETRIC;
     NEW_VIRTUAL_TENSOR(node[164]->output.tensors[0], attr, VSI_NN_TYPE_INT8);

@@ -1,22 +1,26 @@
 {
     "Inputs": {
-        "images_238": {
-            "name": "images",
+        "images_238_0": {
+            "name": "images_0",
             "shape": [
                 1,
-                3,
+                1,
                 320,
                 320
             ],
             "format": "nchw",
-            "quantizer": "asymmetric_affine",
-            "quantize": {
-                "qtype": "i8",
-                "max_value": 1.0000079870224,
-                "min_value": 0.0,
-                "scale": 0.003921600058674812,
-                "zero_point": -128
-            }
+            "dtype": "uint8"
+        },
+        "images_238_1": {
+            "name": "images_1",
+            "shape": [
+                1,
+                1,
+                160,
+                320
+            ],
+            "format": "nchw",
+            "dtype": "uint8"
         }
     },
     "Outputs": {
@@ -28,13 +32,12 @@
                 2100
             ],
             "format": "nchw",
-            "quantizer": "asymmetric_affine",
+            "quantizer": "dynamic_fixed_point",
             "quantize": {
-                "qtype": "i8",
+                "qtype": "i16",
                 "max_value": 418.75689697265625,
-                "min_value": 0.0,
-                "scale": 1.6421838998794556,
-                "zero_point": -128
+                "min_value": 7.628663934847437e-17,
+                "fl": 6
             }
         }
     },

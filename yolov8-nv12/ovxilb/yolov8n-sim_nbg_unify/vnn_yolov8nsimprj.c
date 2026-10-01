@@ -87,7 +87,7 @@
     } while(0)
 
 #define NET_NODE_NUM            (1)
-#define NET_NORM_TENSOR_NUM     (2)
+#define NET_NORM_TENSOR_NUM     (3)
 #define NET_CONST_TENSOR_NUM    (0)
 #define NET_VIRTUAL_TENSOR_NUM  (1)
 #define NET_TOTAL_TENSOR_NUM    (NET_NORM_TENSOR_NUM + NET_CONST_TENSOR_NUM + NET_VIRTUAL_TENSOR_NUM)
@@ -212,7 +212,7 @@ vsi_nn_graph_t * vnn_CreateYolov8nSimprj
         goto error;
     }
     vsi_nn_SetGraphVersion( graph, VNN_VERSION_MAJOR, VNN_VERSION_MINOR, VNN_VERSION_PATCH );
-    vsi_nn_SetGraphInputs( graph, NULL, 1 );
+    vsi_nn_SetGraphInputs( graph, NULL, 2 );
     vsi_nn_SetGraphOutputs( graph, NULL, 1 );
 
 /*-----------------------------------------
@@ -231,17 +231,18 @@ vsi_nn_graph_t * vnn_CreateYolov8nSimprj
       var       - node[0]
       name      - nbg
       operation - nbg
-      input     - [320, 320, 3, 1]
+      input     - [320, 320, 1, 1]
+                  [320, 160, 1, 1]
       output    - [2100, 84, 1]
     -----------------------------------------*/
-    NEW_VXNODE(node[0], VSI_NN_OP_NBG, 1, 1, 0);
+    NEW_VXNODE(node[0], VSI_NN_OP_NBG, 2, 1, 0);
     node[0]->nn_param.nbg.type = VSI_NN_NBG_FILE;
     node[0]->nn_param.nbg.url = data_file_name;
 
     }
     else
     {
-    NEW_VXNODE(node[0], VSI_NN_OP_NBG, 1, 1, 0);
+    NEW_VXNODE(node[0], VSI_NN_OP_NBG, 2, 1, 0);
     node[0]->nn_param.nbg.type = VSI_NN_NBG_FILE;
     node[0]->nn_param.nbg.url = data_file_name;
 
@@ -251,28 +252,35 @@ vsi_nn_graph_t * vnn_CreateYolov8nSimprj
   Tensor initialize
  -----------------------------------------*/
     attr.dtype.fmt = VSI_NN_DIM_FMT_NCHW;
+    /* @images_238_0:out0 */
+    memset( &attr, 0, sizeof( attr ) );
+    attr.size[0] = 320;
+    attr.size[1] = 320;
+    attr.size[2] = 1;
+    attr.size[3] = 1;
+    attr.dim_num = 4;
+    attr.dtype.qnt_type = VSI_NN_QNT_TYPE_NONE;
+    NEW_NORM_TENSOR(norm_tensor[0], attr, VSI_NN_TYPE_UINT8);
+
     /* @attach_Concat_/model.22/Concat_5/out0_0:out0 */
     memset( &attr, 0, sizeof( attr ) );
     attr.size[0] = 2100;
     attr.size[1] = 84;
     attr.size[2] = 1;
     attr.dim_num = 3;
-    attr.dtype.scale = 1.6421838998794556;
-    attr.dtype.zero_point = -128;
-    attr.dtype.qnt_type = VSI_NN_QNT_TYPE_AFFINE_ASYMMETRIC;
-    NEW_NORM_TENSOR(norm_tensor[0], attr, VSI_NN_TYPE_INT8);
+    attr.dtype.fl = 6;
+    attr.dtype.qnt_type = VSI_NN_QNT_TYPE_DFP;
+    NEW_NORM_TENSOR(norm_tensor[1], attr, VSI_NN_TYPE_INT16);
 
-    /* @images_238:out0 */
+    /* @images_238_1:out0 */
     memset( &attr, 0, sizeof( attr ) );
     attr.size[0] = 320;
-    attr.size[1] = 320;
-    attr.size[2] = 3;
+    attr.size[1] = 160;
+    attr.size[2] = 1;
     attr.size[3] = 1;
     attr.dim_num = 4;
-    attr.dtype.scale = 0.003921600058674812;
-    attr.dtype.zero_point = -128;
-    attr.dtype.qnt_type = VSI_NN_QNT_TYPE_AFFINE_ASYMMETRIC;
-    NEW_NORM_TENSOR(norm_tensor[1], attr, VSI_NN_TYPE_INT8);
+    attr.dtype.qnt_type = VSI_NN_QNT_TYPE_NONE;
+    NEW_NORM_TENSOR(norm_tensor[2], attr, VSI_NN_TYPE_UINT8);
 
 
 
@@ -285,8 +293,9 @@ vsi_nn_graph_t * vnn_CreateYolov8nSimprj
 /*-----------------------------------------
   Connection initialize
  -----------------------------------------*/
-    node[0]->input.tensors[0] = norm_tensor[1];
-    node[0]->output.tensors[0] = norm_tensor[0];
+    node[0]->input.tensors[0] = norm_tensor[0];
+    node[0]->input.tensors[1] = norm_tensor[2];
+    node[0]->output.tensors[0] = norm_tensor[1];
 
     /* nbg_0 */
 
@@ -294,15 +303,17 @@ vsi_nn_graph_t * vnn_CreateYolov8nSimprj
     }
     else
     {
-    node[0]->input.tensors[0] = norm_tensor[1];
-    node[0]->output.tensors[0] = norm_tensor[0];
+    node[0]->input.tensors[0] = norm_tensor[0];
+    node[0]->input.tensors[1] = norm_tensor[2];
+    node[0]->output.tensors[0] = norm_tensor[1];
 
     /* nbg_0 */
 
 
     }
-    graph->input.tensors[0] = norm_tensor[1];
-    graph->output.tensors[0] = norm_tensor[0];
+    graph->input.tensors[0] = norm_tensor[0];
+    graph->input.tensors[1] = norm_tensor[2];
+    graph->output.tensors[0] = norm_tensor[1];
 
 
     if( enable_pre_post_process )

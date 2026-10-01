@@ -2,21 +2,19 @@
 version: 2
 quantize_parameters:
   '@attach_Concat_/model.22/Concat_5/out0_0:out0':
-    qtype: i8
-    quantizer: asymmetric_affine
+    qtype: i16
+    quantizer: dynamic_fixed_point
     rounding: rtne
     max_value: 418.75689697265625
-    min_value: 0.0
-    scale: 1.6421838998794556
-    zero_point: -128
+    min_value: 7.628663934847437e-17
+    fl: 6
   '@Concat_/model.22/Concat_5_1:out0':
-    qtype: i8
-    quantizer: asymmetric_affine
+    qtype: i16
+    quantizer: dynamic_fixed_point
     rounding: rtne
     max_value: 418.75689697265625
-    min_value: 0.0
-    scale: 1.6421838998794556
-    zero_point: -128
+    min_value: 7.628663934847437e-17
+    fl: 6
   '@Mul_/model.22/Mul_2_2:out0':
     qtype: i8
     quantizer: asymmetric_affine
@@ -29,9 +27,9 @@ quantize_parameters:
     qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 418.75689697265625
+    max_value: 0.857970118522644
     min_value: 0.0
-    scale: 1.6421838998794556
+    scale: 0.003364588599652052
     zero_point: -128
   '@Concat_/model.22/Concat_4_4:out0':
     qtype: i8
@@ -166,97 +164,97 @@ quantize_parameters:
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 11.297074317932129
-    min_value: -37.11203384399414
-    scale: 0.18983963131904602
-    zero_point: 67
+    min_value: -20.08119010925293
+    scale: 0.12305202335119247
+    zero_point: 35
   '@Reshape_/model.22/Reshape_1_24:out0':
     qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 11.297074317932129
-    min_value: -37.11203384399414
-    scale: 0.18983963131904602
-    zero_point: 67
+    max_value: 9.194040298461914
+    min_value: -28.87873649597168
+    scale: 0.14930500090122223
+    zero_point: 65
   '@Reshape_/model.22/Reshape_2_25:out0':
     qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 11.297074317932129
+    max_value: 10.673250198364258
     min_value: -37.11203384399414
-    scale: 0.18983963131904602
-    zero_point: 67
+    scale: 0.18739327788352966
+    zero_point: 70
   '@Concat_/model.22/Concat_26:out0':
     qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 11.297074317932129
-    min_value: -37.11203384399414
-    scale: 0.18983963131904602
-    zero_point: 67
+    min_value: -20.08119010925293
+    scale: 0.12305202335119247
+    zero_point: 35
   '@Concat_/model.22/Concat_1_27:out0':
     qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 11.297074317932129
-    min_value: -37.11203384399414
-    scale: 0.18983963131904602
-    zero_point: 67
+    max_value: 9.194040298461914
+    min_value: -28.87873649597168
+    scale: 0.14930500090122223
+    zero_point: 65
   '@Concat_/model.22/Concat_2_28:out0':
     qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 11.297074317932129
+    max_value: 10.673250198364258
     min_value: -37.11203384399414
-    scale: 0.18983963131904602
-    zero_point: 67
+    scale: 0.18739327788352966
+    zero_point: 70
   '@Conv_/model.22/cv2.0/cv2.0.2/Conv_29:out0':
     qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 11.297074317932129
-    min_value: -37.11203384399414
-    scale: 0.18983963131904602
-    zero_point: 67
+    min_value: -20.08119010925293
+    scale: 0.12305202335119247
+    zero_point: 35
   '@Conv_/model.22/cv3.0/cv3.0.2/Conv_30:out0':
     qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 11.297074317932129
-    min_value: -37.11203384399414
-    scale: 0.18983963131904602
-    zero_point: 67
+    min_value: -20.08119010925293
+    scale: 0.12305202335119247
+    zero_point: 35
   '@Conv_/model.22/cv2.1/cv2.1.2/Conv_31:out0':
     qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 11.297074317932129
-    min_value: -37.11203384399414
-    scale: 0.18983963131904602
-    zero_point: 67
+    max_value: 9.194040298461914
+    min_value: -28.87873649597168
+    scale: 0.14930500090122223
+    zero_point: 65
   '@Conv_/model.22/cv3.1/cv3.1.2/Conv_32:out0':
     qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 11.297074317932129
-    min_value: -37.11203384399414
-    scale: 0.18983963131904602
-    zero_point: 67
+    max_value: 9.194040298461914
+    min_value: -28.87873649597168
+    scale: 0.14930500090122223
+    zero_point: 65
   '@Conv_/model.22/cv2.2/cv2.2.2/Conv_33:out0':
     qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 11.297074317932129
+    max_value: 10.673250198364258
     min_value: -37.11203384399414
-    scale: 0.18983963131904602
-    zero_point: 67
+    scale: 0.18739327788352966
+    zero_point: 70
   '@Conv_/model.22/cv3.2/cv3.2.2/Conv_34:out0':
     qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 11.297074317932129
+    max_value: 10.673250198364258
     min_value: -37.11203384399414
-    scale: 0.18983963131904602
-    zero_point: 67
+    scale: 0.18739327788352966
+    zero_point: 70
   '@Conv_/model.22/cv2.0/cv2.0.1/conv/Conv_41:out0':
     qtype: i8
     quantizer: asymmetric_affine
@@ -533,10 +531,10 @@ quantize_parameters:
     qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 5.86663293838501
-    min_value: -0.27846458554267883
-    scale: 0.02409842237830162
-    zero_point: -116
+    max_value: 3.778292417526245
+    min_value: -0.27846455574035645
+    scale: 0.015908850356936455
+    zero_point: -110
   '@Concat_/model.20/Concat_117:out0':
     qtype: i8
     quantizer: asymmetric_affine
@@ -549,10 +547,10 @@ quantize_parameters:
     qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 5.86663293838501
-    min_value: -0.27846458554267883
-    scale: 0.02409842237830162
-    zero_point: -116
+    max_value: 3.778292417526245
+    min_value: -0.27846455574035645
+    scale: 0.015908850356936455
+    zero_point: -110
   '@Conv_/model.4/cv2/conv/Conv_120:out0':
     qtype: i8
     quantizer: asymmetric_affine
@@ -1062,25 +1060,25 @@ quantize_parameters:
     quantizer: asymmetric_affine
     rounding: rtne
     max_value: 11.297074317932129
-    min_value: -37.11203384399414
-    scale: 0.18983963131904602
-    zero_point: 67
+    min_value: -20.08119010925293
+    scale: 0.12305202335119247
+    zero_point: 35
   '@Reshape_/model.22/Reshape_1_24_acuity_mark_perm_242:out0':
     qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 11.297074317932129
-    min_value: -37.11203384399414
-    scale: 0.18983963131904602
-    zero_point: 67
+    max_value: 9.194040298461914
+    min_value: -28.87873649597168
+    scale: 0.14930500090122223
+    zero_point: 65
   '@Reshape_/model.22/Reshape_2_25_acuity_mark_perm_243:out0':
     qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 11.297074317932129
+    max_value: 10.673250198364258
     min_value: -37.11203384399414
-    scale: 0.18983963131904602
-    zero_point: 67
+    scale: 0.18739327788352966
+    zero_point: 70
   '@Conv_/model.0/conv/Conv_237_acuity_mark_perm_244:out0':
     qtype: i8
     quantizer: asymmetric_affine
@@ -1293,10 +1291,10 @@ quantize_parameters:
     qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 5.86663293838501
-    min_value: -0.27846458554267883
-    scale: 0.02409842237830162
-    zero_point: -116
+    max_value: 3.778292417526245
+    min_value: -0.27846455574035645
+    scale: 0.015908850356936455
+    zero_point: -110
   '@Sigmoid_/model.9/cv2/act/Sigmoid_127_Mul_/model.9/cv2/act/Mul_118:out0':
     qtype: i8
     quantizer: asymmetric_affine
@@ -1309,10 +1307,10 @@ quantize_parameters:
     qtype: i8
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 5.86663293838501
-    min_value: -0.27846458554267883
-    scale: 0.02409842237830162
-    zero_point: -116
+    max_value: 3.778292417526245
+    min_value: -0.27846455574035645
+    scale: 0.015908850356936455
+    zero_point: -110
   '@Sigmoid_/model.19/act/Sigmoid_136_Mul_/model.19/act/Mul_125:out0':
     qtype: i8
     quantizer: asymmetric_affine
@@ -2029,9 +2027,9 @@ quantize_parameters:
     qtype: i32
     quantizer: asymmetric_affine
     rounding: rtne
-    max_value: 435019.12479742843
-    min_value: -435019.125
-    scale: 0.00020257156575098634
+    max_value: 287182.87486627005
+    min_value: -287182.875
+    scale: 0.00013372994726523757
     zero_point: 0
   '@Conv_/model.21/cv1/conv/Conv_111:weight':
     qtype: i8
@@ -2577,5 +2575,20 @@ quantize_parameters:
     min_value: -1047047.75
     scale: 0.00048756960313767195
     zero_point: 0
+  '@Concat_/model.22/Concat_5_1_pre_asymmetric_affinei8_to_dynamic_fixed_pointi16_16:out0':
+    qtype: i16
+    quantizer: dynamic_fixed_point
+    rounding: rtne
+    max_value: 418.75689697265625
+    min_value: 7.628663934847437e-17
+    fl: 6
+  '@Concat_/model.22/Concat_5_1_pre_asymmetric_affinei8_to_dynamic_fixed_pointi16_19:out0':
+    qtype: i16
+    quantizer: dynamic_fixed_point
+    rounding: rtne
+    max_value: 418.75689697265625
+    min_value: 7.628663934847437e-17
+    fl: 6
 customized_quantize_layers:
-    Concat_/model.22/Concat_5_1: dynamic_fixed_point‑i16
+  Concat_/model.22/Concat_5_1: dynamic_fixed_point-i16
+  attach_Concat_/model.22/Concat_5/out0_0: dynamic_fixed_point-i16

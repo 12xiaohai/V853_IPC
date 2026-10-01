@@ -29,8 +29,8 @@ input_meta:
         - 0
         scale: 0.0039216
         preproc_node_params:
-          add_preproc_node: false
-          preproc_type: IMAGE_RGB
+          add_preproc_node: true
+          preproc_type: IMAGE_NV12
           preproc_image_size:
           - 320
           - 320
