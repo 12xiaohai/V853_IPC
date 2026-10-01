@@ -12,6 +12,7 @@
 #include "context.h"
 #include "log.h"
 #include "mp4_recorder.h"
+#include "npu_detector.h"
 #include "npu_self_test.h"
 #include "platform.h"
 #include "rtsp_stream.h"
@@ -191,6 +192,9 @@ int main(int argc, char *argv[])
     int mp4_recorder_started = 0;
     Mp4RecorderContext *mp4_recorder = NULL;
     Mp4RecorderConfig mp4_config;
+    int npu_detector_started = 0;
+    NpuDetectorContext *npu_detector = NULL;
+    NpuDetectorConfig npu_config;
     MediaConsumers media_consumers;
     const unsigned char *h264_header = NULL;
     size_t h264_header_size = 0U;
@@ -440,6 +444,36 @@ int main(int argc, char *argv[])
     }
     audio_encoder_started = 1;
 
+    /*
+     * 阶段 9.2 沿用原项目的独立 AI 采集通路：VIPP 8 直接输出模型需要的
+     * 320x320 NV12，不从 1920x1080 预览帧做 CPU 缩放，也不影响 VIPP 0 编码。
+     * 10 fps 足以进行监控检测，同时为后续越线/入侵逻辑和媒体线程留出余量。
+     */
+    memset(&npu_config, 0, sizeof(npu_config));
+    npu_config.vi_device = 8;
+    npu_config.isp_device = 0;
+    npu_config.vi_channel = 0;
+    npu_config.width = 320;
+    npu_config.height = 320;
+    npu_config.frame_rate = 10;
+    npu_config.buffer_count = 3;
+    npu_config.timeout_ms = 200;
+    npu_config.model_path = "/lib/yolov8n.nb";
+    npu_config.confidence_threshold = 0.25f;
+    npu_config.nms_threshold = 0.45f;
+    npu_config.log_interval_frames = 50U;
+
+    npu_detector = npu_detector_create(&npu_config);
+    if (npu_detector == NULL) {
+        aloge("[Main] NPU detector context allocation failed");
+        goto cleanup;
+    }
+    if (npu_detector_start(npu_detector) != 0) {
+        aloge("[Main] Realtime NPU person detector initialization failed");
+        goto cleanup;
+    }
+    npu_detector_started = 1;
+
     /* 主线程不做媒体处理，只等待信号；实际工作由各子线程完成。 */
     alogd("[Main] Application is running; press Ctrl+C to exit");
     while (g_exit_signal == 0) {
@@ -456,7 +490,17 @@ cleanup:
      * 先停 VENC 再停 RTSP，可保证销毁 RTSP 后不会再有新编码帧入队。
      */
 
-    /* 音频最后启动，因此在逆序清理时最先停止。 */
+    /*
+     * NPU 最后启动，因此最先停止。join 完成后才释放模型和 VIPP 8，确保推理线程
+     * 不会访问已经销毁的 VI 帧或 AWNN 上下文。
+     */
+    if (npu_detector_started && npu_detector_stop(npu_detector) != 0) {
+        ret = EXIT_FAILURE;
+    }
+    npu_detector_destroy(npu_detector);
+    npu_detector = NULL;
+
+    /* 音频在 NPU 之前启动，因此继续按逆序停止。 */
     if (audio_encoder_started && audio_encoder_stop(audio_encoder) != 0) {
         ret = EXIT_FAILURE;
     }
