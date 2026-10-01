@@ -34,6 +34,7 @@ typedef struct RecordingFileInfo {
 struct Mp4RecorderContext {
     Mp4RecorderConfig config;
     char output_path[MP4_RECORDER_PATH_SIZE];
+    char pending_output_path[MP4_RECORDER_PATH_SIZE];
     char output_directory[MP4_RECORDER_PATH_SIZE];
     char file_prefix[MP4_RECORDER_PREFIX_SIZE];
     unsigned char *h264_header;
@@ -62,11 +63,13 @@ struct Mp4RecorderContext {
     int rotation_stop_requested;
     int next_fd_requested;
     int cleanup_requested;
+    int pending_segment_ready;
     int rotation_failed;
     int storage_failed;
     unsigned int file_sequence;
     unsigned long long completed_files;
     unsigned long long deleted_files;
+    unsigned long long discarded_empty_files;
 
     unsigned long long video_frames;
     unsigned long long audio_frames;
@@ -384,6 +387,19 @@ static int switch_to_next_segment(Mp4RecorderContext *recorder)
     int next_fd;
     ERRORTYPE ret;
 
+    /*
+     * MUX会提前请求下一个文件。如果上一个备用文件还没有真正切换为当前文件，
+     * 再提交一个fd会使文件状态无法对应，因此把它视为异常。
+     */
+    pthread_mutex_lock(&recorder->rotation_lock);
+    if (recorder->pending_segment_ready) {
+        pthread_mutex_unlock(&recorder->rotation_lock);
+        aloge("[MP4] Previous pending segment has not become active: %s",
+              recorder->pending_output_path);
+        return -1;
+    }
+    pthread_mutex_unlock(&recorder->rotation_lock);
+
     /* 先清理再创建，避免磁盘已接近阈值时继续无条件增加文件。 */
     if (prune_old_recordings(recorder, recorder->output_path, 1U) != 0) {
         return -1;
@@ -401,15 +417,30 @@ static int switch_to_next_segment(Mp4RecorderContext *recorder)
         unlink(next_path);
         return 0;
     }
+    /*
+     * 先登记备用路径再调用SDK：即使某个SDK版本在SwitchFd内部同步触发
+     * RECORD_DONE，回调也能找到并正确晋升这个文件。
+     */
+    pthread_mutex_lock(&recorder->rotation_lock);
+    memcpy(recorder->pending_output_path,
+           next_path,
+           strlen(next_path) + 1U);
+    recorder->pending_segment_ready = 1;
+    pthread_mutex_unlock(&recorder->rotation_lock);
+
     ret = AW_MPI_MUX_SwitchFd(recorder->config.mux_channel, next_fd, 0);
-    if (ret == SUCCESS) {
-        memcpy(recorder->output_path, next_path, strlen(next_path) + 1U);
-    }
     pthread_mutex_unlock(&recorder->send_lock);
 
     /* 参考原项目：SwitchFd成功返回后，MUX已经保存了自己的fd引用。 */
     close(next_fd);
     if (ret != SUCCESS) {
+        pthread_mutex_lock(&recorder->rotation_lock);
+        if (recorder->pending_segment_ready &&
+            strcmp(recorder->pending_output_path, next_path) == 0) {
+            recorder->pending_output_path[0] = '\0';
+            recorder->pending_segment_ready = 0;
+        }
+        pthread_mutex_unlock(&recorder->rotation_lock);
         /* SwitchFd失败时MUX没有使用该文件，删除刚创建的空占位文件。 */
         unlink(next_path);
         aloge("[MP4] Switch to next segment failed: file=%s, ret=%d",
@@ -418,7 +449,62 @@ static int switch_to_next_segment(Mp4RecorderContext *recorder)
         return -1;
     }
 
-    alogd("[MP4] Switched to next segment: %s", next_path);
+    alogd("[MP4] Submitted pending segment: %s", next_path);
+    return 0;
+}
+
+/*
+ * 停止MUX后处理“已提交但尚未使用”的备用文件。
+ * 空文件表示切片边界尚未到达，安全删除；非空文件表示MUX已开始使用，只是停止
+ * 阶段没有再晋升状态，因此必须保留并把它记为最后的有效录像文件。
+ */
+static int resolve_pending_segment_on_stop(Mp4RecorderContext *recorder)
+{
+    struct stat file_stat;
+    char pending_path[MP4_RECORDER_PATH_SIZE];
+
+    pthread_mutex_lock(&recorder->rotation_lock);
+    if (!recorder->pending_segment_ready) {
+        pthread_mutex_unlock(&recorder->rotation_lock);
+        return 0;
+    }
+    memcpy(pending_path,
+           recorder->pending_output_path,
+           strlen(recorder->pending_output_path) + 1U);
+    pthread_mutex_unlock(&recorder->rotation_lock);
+
+    if (lstat(pending_path, &file_stat) != 0) {
+        if (errno != ENOENT) {
+            aloge("[MP4] Inspect pending segment failed: file=%s, errno=%d",
+                  pending_path,
+                  errno);
+            return -1;
+        }
+    } else if (!S_ISREG(file_stat.st_mode)) {
+        aloge("[MP4] Pending segment is not a regular file: %s", pending_path);
+        return -1;
+    } else if (file_stat.st_size == 0) {
+        if (unlink(pending_path) != 0) {
+            aloge("[MP4] Remove unused pending segment failed: file=%s, errno=%d",
+                  pending_path,
+                  errno);
+            return -1;
+        }
+        ++recorder->discarded_empty_files;
+        alogd("[MP4] Removed unused empty pending segment: %s", pending_path);
+    } else {
+        memcpy(recorder->output_path,
+               pending_path,
+               strlen(pending_path) + 1U);
+        alogd("[MP4] Kept active pending segment: file=%s, size=%lld bytes",
+              pending_path,
+              (long long)file_stat.st_size);
+    }
+
+    pthread_mutex_lock(&recorder->rotation_lock);
+    recorder->pending_output_path[0] = '\0';
+    recorder->pending_segment_ready = 0;
+    pthread_mutex_unlock(&recorder->rotation_lock);
     return 0;
 }
 
@@ -529,15 +615,33 @@ static ERRORTYPE mp4_mux_callback(void *cookie,
 
     if (event == MPP_EVENT_RECORD_DONE) {
         int muxer_id = event_data != NULL ? *(int *)event_data : -1;
+        int segment_promoted = 0;
+        char active_path[MP4_RECORDER_PATH_SIZE];
+
+        active_path[0] = '\0';
         pthread_mutex_lock(&recorder->rotation_lock);
         ++recorder->completed_files;
         if (recorder->config.segment_duration_seconds > 0 &&
             !recorder->rotation_stop_requested) {
+            if (recorder->pending_segment_ready) {
+                memcpy(recorder->output_path,
+                       recorder->pending_output_path,
+                       strlen(recorder->pending_output_path) + 1U);
+                memcpy(active_path,
+                       recorder->output_path,
+                       strlen(recorder->output_path) + 1U);
+                recorder->pending_output_path[0] = '\0';
+                recorder->pending_segment_ready = 0;
+                segment_promoted = 1;
+            }
             recorder->cleanup_requested = 1;
             pthread_cond_signal(&recorder->rotation_cond);
         }
         pthread_mutex_unlock(&recorder->rotation_lock);
         alogd("[MP4] MUX reported record done: muxer_id=%d", muxer_id);
+        if (segment_promoted) {
+            alogd("[MP4] Pending segment is now active: %s", active_path);
+        }
     } else if (event == MPP_EVENT_NEED_NEXT_FD) {
         int muxer_id = event_data != NULL ? *(int *)event_data : -1;
 
@@ -1031,6 +1135,15 @@ int mp4_recorder_stop(Mp4RecorderContext *recorder)
         recorder->output_fd = -1;
     }
 
+    /*
+     * Ctrl+C可能发生在MUX预取下一个fd之后、实际分段之前。此时会残留一个
+     * 0字节备用文件；必须等StopChn结束、MUX不再写文件后才能安全判定和删除。
+     */
+    if (recorder->config.segment_duration_seconds > 0 &&
+        resolve_pending_segment_on_stop(recorder) != 0) {
+        recorder->storage_failed = 1;
+    }
+
     /* 最后一段已经封口，再同步执行一次清理；保留本次最后生成的文件。 */
     if (recorder->config.segment_duration_seconds > 0 &&
         prune_old_recordings(recorder, recorder->output_path, 0U) != 0) {
@@ -1044,6 +1157,7 @@ int mp4_recorder_stop(Mp4RecorderContext *recorder)
     alogd("[MP4] Recorder stopped: video=%llu, audio=%llu, "
           "skipped_video=%llu, skipped_audio=%llu, "
           "adts_stripped=%llu, completed_files=%llu, deleted_files=%llu, "
+          "discarded_empty_files=%llu, "
           "file=%s",
           recorder->video_frames,
           recorder->audio_frames,
@@ -1052,6 +1166,7 @@ int mp4_recorder_stop(Mp4RecorderContext *recorder)
           recorder->stripped_adts_frames,
           recorder->completed_files,
           recorder->deleted_files,
+          recorder->discarded_empty_files,
           recorder->output_path);
     return result;
 }
