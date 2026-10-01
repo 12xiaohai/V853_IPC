@@ -195,3 +195,25 @@ rtsp://172.20.10.14:8554/ch0
 关键帧数与 GOP=75 的设置相符。日志证明 TinyServer、RTSP 发送线程、VENC 取流线程和 LCD 预览可以长时间并行工作，且 `Ctrl+C` 后能按正确顺序释放。阶段 5 全部验收完成。
 
 长时间运行期间出现两次 `video4 fifo overflow` 以及少量 Wi-Fi `TXRX_WRN` 重试提示。它们没有造成应用层中断，RTSP 队列和 LCD 帧池的丢帧统计均为 0，因此不影响本阶段验收。如后续长时间压力测试中频繁出现，再分别检查 CSI 带宽/缓冲和 Wi-Fi 信号质量。
+
+## 11. 实际问题与排障记录
+
+### 11.1 RTSP C++源码编译时找不到 `stdlib.h`
+
+编译 `rtsp_server.cpp` 时，libstdc++的 `<cstdlib>` 通过
+`#include_next <stdlib.h>` 查找目标C库头文件失败。根因不是RTSP源码缺少
+include，而是复制后的工具链系统头文件搜索顺序不完整。Makefile使用
+`-idirafter $(TOOLCHAIN_ROOT)/include` 恢复目标C库头文件搜索后，C++源码和
+最终程序均可正常编译。
+
+### 11.2 开发板未联网时RTSP客户端无法连接
+
+第一次运行时开发板没有连接网络，RTSP无法形成可供电脑访问的完整链路。
+确认 `wlan0` 获得IP并能与电脑互相ping通后，TinyServer输出实际URL，VLC
+连接成功。该现象属于网络前置条件未满足，不是H.264编码或RTSP队列故障。
+
+### 11.3 长时间运行的非致命提示
+
+实测期间的少量 `video4 fifo overflow` 和Wi-Fi `TXRX_WRN` 没有造成应用层
+丢帧：RTSP发送2796/2796、队列丢帧0、LCD提交/释放2804/2804。因此本次按
+非致命底层提示记录；只有频率持续升高或应用统计出现丢帧时才升级排查。
