@@ -199,6 +199,9 @@ int main(int argc, char *argv[])
     int detection_overlay_started = 0;
     DetectionOverlayContext *detection_overlay = NULL;
     DetectionOverlayConfig detection_overlay_config;
+    int lcd_detection_overlay_started = 0;
+    DetectionOverlayContext *lcd_detection_overlay = NULL;
+    DetectionOverlayConfig lcd_detection_overlay_config;
     MediaConsumers media_consumers;
     const unsigned char *h264_header = NULL;
     size_t h264_header_size = 0U;
@@ -551,6 +554,35 @@ int main(int argc, char *argv[])
     }
     detection_overlay_started = 1;
 
+    /*
+     * LCD预览来自VIPP 4，不会继承VIPP 0上的ORL。因此用独立句柄
+     * 200..215把同一份检测结果附着到VIPP 4。检测框会先成为
+     * 1920x1080预览帧的一部分，再和图像一起被G2D旋转270度并送往LCD，
+     * 所以不需要额外计算480x800的坐标。
+     */
+    lcd_detection_overlay_config = detection_overlay_config;
+    lcd_detection_overlay_config.target_vi_device =
+        g_pContext->video_capture.device;
+    lcd_detection_overlay_config.target_vi_channel =
+        g_pContext->video_capture.channel;
+    lcd_detection_overlay_config.target_width =
+        g_pContext->video_capture.width;
+    lcd_detection_overlay_config.target_height =
+        g_pContext->video_capture.height;
+    lcd_detection_overlay_config.region_handle_base = 200U;
+
+    lcd_detection_overlay =
+        detection_overlay_create(&lcd_detection_overlay_config);
+    if (lcd_detection_overlay == NULL) {
+        aloge("[Main] LCD detection overlay context allocation failed");
+        goto cleanup;
+    }
+    if (detection_overlay_start(lcd_detection_overlay) != 0) {
+        aloge("[Main] LCD detection overlay initialization failed");
+        goto cleanup;
+    }
+    lcd_detection_overlay_started = 1;
+
     /* 主线程不做媒体处理，只等待信号；实际工作由各子线程完成。 */
     alogd("[Main] Application is running; press Ctrl+C to exit");
     while (g_exit_signal == 0) {
@@ -568,9 +600,17 @@ cleanup:
      */
 
     /*
-     * ORL线程依赖NPU快照和编码VIPP 0，所以必须先停画框，再停NPU
-     * 和VENC。stop还会拆除所有region，避免下次启动遇到句柄已存在。
+     * 两个ORL线程依赖NPU快照及VIPP 0/4，所以必须先停画框，
+     * 再停NPU、VENC和预览VI。stop还会拆除所有region，避免下次
+     * 启动遇到句柄已存在。
      */
+    if (lcd_detection_overlay_started &&
+        detection_overlay_stop(lcd_detection_overlay) != 0) {
+        ret = EXIT_FAILURE;
+    }
+    detection_overlay_destroy(lcd_detection_overlay);
+    lcd_detection_overlay = NULL;
+
     if (detection_overlay_started &&
         detection_overlay_stop(detection_overlay) != 0) {
         ret = EXIT_FAILURE;

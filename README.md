@@ -87,8 +87,12 @@ shutdown. Stage 9.2 is complete. Stage 9.3 adds a separate result-consumer
 thread that maps 320x320 detections into the shared 1920x1080 sensor orientation and
 uses the original project's MPP ORL regions on VIPP 0. The resulting person
 boxes are carried by the shared H.264 stream into RTSP and MP4 without blocking
-the NPU thread or conflicting with the VENC time overlay. Stage 9.3 code is
-complete and awaiting board validation.
+the NPU thread or conflicting with the VENC time overlay. A second independent
+ORL handle range targets preview VIPP 4 before G2D rotation, allowing the same
+detections to appear on the portrait LCD. Stage 9.3 code is complete. Board-side RTSP validation confirmed that the sensor orientation,
+320x320-to-1920x1080 coordinate mapping, person rectangle, and time overlay are
+aligned correctly, and MP4 playback confirmed that recorded boxes are present.
+The new LCD overlay path is awaiting board validation.
 
 Run the Stage 9.1 NPU self-test on the board:
 

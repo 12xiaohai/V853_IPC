@@ -12,6 +12,13 @@
 
 #define DETECTION_OVERLAY_MAX_REGIONS 32U
 
+/*
+ * 编码和LCD会各启动一个overlay上下文。MPP region句柄属于全局资源，
+ * 因此两个线程在Create/Attach/Detach/Destroy时使用同一把锁，避免并发
+ * 修改MPP内部的region表。
+ */
+static pthread_mutex_t g_region_api_lock = PTHREAD_MUTEX_INITIALIZER;
+
 struct DetectionOverlayContext {
     DetectionOverlayConfig config;
     MPP_CHN_S target_channel;
@@ -72,7 +79,7 @@ static int align_up_2(int value)
  * 先删除上一次的框。MPP的ORL region必须先Detach，再Destroy。
  * 这和原项目paint_objects()的资源回收顺序一致。
  */
-static int clear_regions(DetectionOverlayContext *context)
+static int clear_regions_unlocked(DetectionOverlayContext *context)
 {
     unsigned int index;
     int result = 0;
@@ -97,6 +104,16 @@ static int clear_regions(DetectionOverlayContext *context)
         }
     }
     context->active_regions = 0U;
+    return result;
+}
+
+static int clear_regions(DetectionOverlayContext *context)
+{
+    int result;
+
+    pthread_mutex_lock(&g_region_api_lock);
+    result = clear_regions_unlocked(context);
+    pthread_mutex_unlock(&g_region_api_lock);
     return result;
 }
 
@@ -175,7 +192,8 @@ static int draw_snapshot(DetectionOverlayContext *context,
     int first_rectangle_valid = 0;
     int result = 0;
 
-    if (clear_regions(context) != 0) {
+    pthread_mutex_lock(&g_region_api_lock);
+    if (clear_regions_unlocked(context) != 0) {
         result = -1;
     }
 
@@ -257,8 +275,11 @@ static int draw_snapshot(DetectionOverlayContext *context,
     if (drawn != context->last_logged_regions ||
         (context->update_count % 50U) == 0U) {
         if (first_rectangle_valid) {
-            alogd("[ORL] Box map: sequence=%llu, model=(%d,%d)-(%d,%d), "
+            alogd("[ORL] Box map: target=VIPP%d:%d, sequence=%llu, "
+                  "model=(%d,%d)-(%d,%d), "
                   "video=(%d,%d)-(%d,%d), drawn=%u",
+                  context->config.target_vi_device,
+                  context->config.target_vi_channel,
                   snapshot->sequence,
                   first_model_detection.xmin,
                   first_model_detection.ymin,
@@ -270,12 +291,16 @@ static int draw_snapshot(DetectionOverlayContext *context,
                   first_video_rectangle.Y + first_video_rectangle.Height,
                   drawn);
         } else {
-            alogd("[ORL] Boxes cleared: sequence=%llu, detected=%d",
+            alogd("[ORL] Boxes cleared: target=VIPP%d:%d, sequence=%llu, "
+                  "detected=%d",
+                  context->config.target_vi_device,
+                  context->config.target_vi_channel,
                   snapshot->sequence,
                   snapshot->detection_count);
         }
         context->last_logged_regions = drawn;
     }
+    pthread_mutex_unlock(&g_region_api_lock);
     return result;
 }
 
@@ -283,7 +308,9 @@ static void *detection_overlay_thread(void *argument)
 {
     DetectionOverlayContext *context = argument;
 
-    alogd("[ORL] Detection overlay thread started");
+    alogd("[ORL] Detection overlay thread started: target=VIPP%d:%d",
+          context->config.target_vi_device,
+          context->config.target_vi_channel);
     while (!context->stop_requested) {
         NpuDetectionSnapshot snapshot;
         unsigned long long now_ms = monotonic_time_ms();
@@ -306,7 +333,10 @@ static void *detection_overlay_thread(void *argument)
                        context->config.stale_timeout_ms) {
             /* NPU停止产生新结果时不能把最后一个框永久留在画面上。 */
             clear_regions(context);
-            alogw("[ORL] Stale detection boxes cleared: timeout=%u ms",
+            alogw("[ORL] Stale detection boxes cleared: target=VIPP%d:%d, "
+                  "timeout=%u ms",
+                  context->config.target_vi_device,
+                  context->config.target_vi_channel,
                   context->config.stale_timeout_ms);
         }
 
@@ -314,7 +344,10 @@ static void *detection_overlay_thread(void *argument)
     }
 
     clear_regions(context);
-    alogd("[ORL] Detection overlay thread stopped: updates=%llu",
+    alogd("[ORL] Detection overlay thread stopped: target=VIPP%d:%d, "
+          "updates=%llu",
+          context->config.target_vi_device,
+          context->config.target_vi_channel,
           context->update_count);
     return NULL;
 }
