@@ -125,23 +125,17 @@ static void *video_encoder_stream_thread(void *argument)
             }
 
             /*
-             * 回调在 ReleaseStream 之前执行。RTSP 模块会在回调中完成深拷贝，
-             * 因此下面归还 VENC 缓冲后，发送线程仍可安全访问数据。
+             * 回调在ReleaseStream之前执行。各消费者必须在回调返回前完成
+             * 深拷贝或同步消费，因此下面归还VENC缓冲后不会留下悬空指针。
              */
             if (encoder->config.frame_callback != NULL &&
                 encoder->config.frame_callback(
                     encoder->config.frame_callback_opaque,
                     encoder->h264_header,
                     encoder->h264_header_size,
-                    pack.mpAddr0,
-                    pack.mLen0,
-                    pack.mpAddr1,
-                    pack.mLen1,
-                    pack.mpAddr2,
-                    pack.mLen2,
-                    (unsigned long long)pack.mPTS,
+                    &stream,
                     is_key_frame) != 0) {
-                alogw("[VENC] RTSP queue rejected frame: seq=%u, key=%d",
+                alogw("[VENC] Encoded-frame consumer rejected frame: seq=%u, key=%d",
                       stream.mSeq,
                       is_key_frame);
             }
@@ -598,4 +592,33 @@ void video_encoder_destroy(VideoEncoderContext *encoder)
         video_encoder_stop(encoder);
     }
     free(encoder);
+}
+
+int video_encoder_get_h264_header(const VideoEncoderContext *encoder,
+                                  const unsigned char **data,
+                                  size_t *size)
+{
+    if (encoder == NULL || data == NULL || size == NULL ||
+        encoder->h264_header == NULL || encoder->h264_header_size == 0U) {
+        return -1;
+    }
+
+    *data = encoder->h264_header;
+    *size = encoder->h264_header_size;
+    return 0;
+}
+
+int video_encoder_request_key_frame(VideoEncoderContext *encoder)
+{
+    ERRORTYPE ret;
+
+    if (encoder == NULL || !encoder->channel_created) {
+        return -1;
+    }
+    ret = AW_MPI_VENC_RequestIDR(encoder->config.channel, TRUE);
+    if (ret != SUCCESS) {
+        aloge("[VENC] Request IDR failed: ret=%d", ret);
+        return -1;
+    }
+    return 0;
 }

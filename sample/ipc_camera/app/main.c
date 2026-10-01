@@ -11,6 +11,7 @@
 #include "config.h"
 #include "context.h"
 #include "log.h"
+#include "mp4_recorder.h"
 #include "platform.h"
 #include "rtsp_stream.h"
 #include "time_osd.h"
@@ -26,42 +27,97 @@ static IpCameraContext *g_pContext;
 static volatile sig_atomic_t g_exit_signal;
 
 /*
- * 这是 VENC 与 RTSP 之间的适配函数。opaque 实际指向 RtspStreamContext，
- * 将编码器的三段帧数据原样交给 RTSP 模块深拷贝。
+ * 一帧编码数据可能同时被多个消费者使用。编码线程只调用一次适配回调，
+ * 这里再把同一块只读缓冲分别交给RTSP和MP4；两个消费者都必须在返回前
+ * 完成复制或同步消费，因为回调返回后编码缓冲就会归还MPP。
  */
-static int push_encoded_frame_to_rtsp(
+typedef struct MediaConsumers {
+    RtspStreamContext *rtsp;
+    Mp4RecorderContext *recorder;
+} MediaConsumers;
+
+/*
+ * 这是VENC与各码流消费者之间的适配函数。RTSP会深拷贝帧，MP4录像器
+ * 则通过同步MUX接口在编码缓冲归还前完成消费。
+ */
+static int dispatch_encoded_video(
     void *opaque,
     const unsigned char *header,
     size_t header_size,
-    const unsigned char *data0,
-    size_t size0,
-    const unsigned char *data1,
-    size_t size1,
-    const unsigned char *data2,
-    size_t size2,
-    unsigned long long pts,
+    const VENC_STREAM_S *stream,
     int key_frame)
 {
-    return rtsp_stream_push_h264((RtspStreamContext *)opaque,
-                                 header,
-                                 header_size,
-                                 data0,
-                                 size0,
-                                 data1,
-                                 size1,
-                                 data2,
-                                 size2,
-                                 pts,
-                                 key_frame);
+    MediaConsumers *consumers = opaque;
+    RtspStreamContext *rtsp;
+    Mp4RecorderContext *recorder;
+    const VENC_PACK_S *pack;
+    int result = 0;
+
+    if (consumers == NULL || stream == NULL || stream->mpPack == NULL ||
+        stream->mPackCount == 0U) {
+        return -1;
+    }
+    pack = &stream->mpPack[0];
+
+    /* 主线程可能在启动阶段接入录像器，先在锁内取得稳定指针快照。 */
+    pthread_mutex_lock(&g_mutex_mpp);
+    rtsp = consumers->rtsp;
+    recorder = consumers->recorder;
+    pthread_mutex_unlock(&g_mutex_mpp);
+
+    if (rtsp != NULL &&
+        rtsp_stream_push_h264(rtsp,
+                              header,
+                              header_size,
+                              pack->mpAddr0,
+                              pack->mLen0,
+                              pack->mpAddr1,
+                              pack->mLen1,
+                              pack->mpAddr2,
+                              pack->mLen2,
+                              (unsigned long long)pack->mPTS,
+                              key_frame) != 0) {
+        result = -1;
+    }
+
+    if (recorder != NULL &&
+        mp4_recorder_push_video(recorder,
+                                stream,
+                                key_frame) != 0) {
+        result = -1;
+    }
+    return result;
 }
 
-/* AENC 与 RTSP 音频队列之间的适配函数，保留编码器给出的原始 PTS。 */
-static int push_encoded_audio_to_rtsp(void *opaque,
-                                      const unsigned char *data,
-                                      unsigned int size,
-                                      unsigned long long pts)
+/* 把同一帧AAC分发给RTSP和MP4，并保留AENC给出的原始PTS。 */
+static int dispatch_encoded_audio(void *opaque,
+                                  const AUDIO_STREAM_S *stream)
 {
-    return rtsp_stream_push_aac((RtspStreamContext *)opaque, data, size, pts);
+    MediaConsumers *consumers = opaque;
+    RtspStreamContext *rtsp;
+    Mp4RecorderContext *recorder;
+    int result = 0;
+
+    if (consumers == NULL || stream == NULL) {
+        return -1;
+    }
+    pthread_mutex_lock(&g_mutex_mpp);
+    rtsp = consumers->rtsp;
+    recorder = consumers->recorder;
+    pthread_mutex_unlock(&g_mutex_mpp);
+
+    if (rtsp != NULL &&
+        rtsp_stream_push_aac(rtsp,
+                             stream->pStream,
+                             stream->mLen,
+                             (unsigned long long)stream->mTimeStamp) != 0) {
+        result = -1;
+    }
+    if (recorder != NULL &&
+        mp4_recorder_push_audio(recorder, stream) != 0) {
+        result = -1;
+    }
+    return result;
 }
 
 static void handle_exit_signal(int signal_number)
@@ -131,8 +187,15 @@ int main(int argc, char *argv[])
     int audio_encoder_started = 0;
     AudioEncoderContext *audio_encoder = NULL;
     AudioEncoderConfig audio_config;
+    int mp4_recorder_started = 0;
+    Mp4RecorderContext *mp4_recorder = NULL;
+    Mp4RecorderConfig mp4_config;
+    MediaConsumers media_consumers;
+    const unsigned char *h264_header = NULL;
+    size_t h264_header_size = 0U;
 
     (void)argc;
+    memset(&media_consumers, 0, sizeof(media_consumers));
 
     /* 保留原项目的全局 MPP 互斥量，供后续多模块协作扩展。 */
     if (pthread_mutex_init(&g_mutex_mpp, NULL) != 0) {
@@ -226,6 +289,7 @@ int main(int argc, char *argv[])
         goto cleanup;
     }
     rtsp_stream_started = 1;
+    media_consumers.rtsp = rtsp_stream; /* VENC线程尚未创建，无并发访问。 */
 
     /*
      * 编码使用独立 VIPP 0，与预览 VIPP 4 并行。VI -> VENC 由 MPP Bind
@@ -243,8 +307,8 @@ int main(int argc, char *argv[])
     encoder_config.gop_size = 75;
     encoder_config.pixel_format = g_pContext->video_capture.pixel_format;
     encoder_config.output_path = "/mnt/UDISK/sample_demo.h264";
-    encoder_config.frame_callback = push_encoded_frame_to_rtsp;
-    encoder_config.frame_callback_opaque = rtsp_stream;
+    encoder_config.frame_callback = dispatch_encoded_video;
+    encoder_config.frame_callback_opaque = &media_consumers;
 
     video_encoder = video_encoder_create(&encoder_config);
     if (video_encoder == NULL) {
@@ -280,6 +344,49 @@ int main(int argc, char *argv[])
     time_osd_started = 1;
 
     /*
+     * 阶段8.1使用MPP MUX把现有H.264/AAC帧封装为MP4。这里不再创建第二套
+     * 编码器；录像、RTSP和裸流文件共享同一批带原始PTS的编码结果。
+     */
+    if (video_encoder_get_h264_header(video_encoder,
+                                      &h264_header,
+                                      &h264_header_size) != 0) {
+        aloge("[Main] Get H.264 SPS/PPS for MP4 failed");
+        goto cleanup;
+    }
+    memset(&mp4_config, 0, sizeof(mp4_config));
+    mp4_config.mux_channel = 0;
+    mp4_config.venc_channel = encoder_config.channel;
+    mp4_config.width = encoder_config.width;
+    mp4_config.height = encoder_config.height;
+    mp4_config.frame_rate = encoder_config.frame_rate;
+    mp4_config.gop_size = encoder_config.gop_size;
+    mp4_config.sample_rate = 16000;
+    mp4_config.audio_channels = 1;
+    mp4_config.audio_bit_width = 16;
+    mp4_config.samples_per_frame = 1024;
+    mp4_config.output_path = "/mnt/UDISK/sample_demo.mp4";
+    mp4_config.h264_header = h264_header;
+    mp4_config.h264_header_size = h264_header_size;
+
+    mp4_recorder = mp4_recorder_create(&mp4_config);
+    if (mp4_recorder == NULL) {
+        aloge("[Main] MP4 recorder context allocation failed");
+        goto cleanup;
+    }
+    if (mp4_recorder_start(mp4_recorder) != 0) {
+        aloge("[Main] MP4 recorder initialization failed");
+        goto cleanup;
+    }
+    mp4_recorder_started = 1;
+    pthread_mutex_lock(&g_mutex_mpp);
+    media_consumers.recorder = mp4_recorder;
+    pthread_mutex_unlock(&g_mutex_mpp);
+    /* 避免录像器等待完整GOP，接入后立即请求一个新的MP4起始关键帧。 */
+    if (video_encoder_request_key_frame(video_encoder) != 0) {
+        alogw("[Main] Request key frame for MP4 failed; waiting for next GOP");
+    }
+
+    /*
      * AI 与 AENC 由 MPP 绑定，应用取出带 ADTS 头的 AAC。阶段 6.3 在
      * 保留本地 AAC 文件的同时，通过回调把同一帧送入 RTSP 音频队列。
      */
@@ -297,8 +404,8 @@ int main(int argc, char *argv[])
     audio_config.output_path = "/mnt/UDISK/sample_demo.aac";
     /* RTSP 未启动时保持回调为空，本地 AAC 文件仍可独立生成。 */
     if (rtsp_stream_started) {
-        audio_config.frame_callback = push_encoded_audio_to_rtsp;
-        audio_config.frame_callback_opaque = rtsp_stream;
+        audio_config.frame_callback = dispatch_encoded_audio;
+        audio_config.frame_callback_opaque = &media_consumers;
     }
 
     audio_encoder = audio_encoder_create(&audio_config);
@@ -348,11 +455,22 @@ cleanup:
     video_encoder_destroy(video_encoder);
     video_encoder = NULL;
 
+    /* 编码线程均停止后再让MUX写尾部索引，保证MP4能够被播放器定位。 */
+    pthread_mutex_lock(&g_mutex_mpp);
+    media_consumers.recorder = NULL;
+    pthread_mutex_unlock(&g_mutex_mpp);
+    if (mp4_recorder_started && mp4_recorder_stop(mp4_recorder) != 0) {
+        ret = EXIT_FAILURE;
+    }
+    mp4_recorder_destroy(mp4_recorder);
+    mp4_recorder = NULL;
+
     if (rtsp_stream_started && rtsp_stream_stop(rtsp_stream) != 0) {
         ret = EXIT_FAILURE;
     }
     rtsp_stream_destroy(rtsp_stream);
     rtsp_stream = NULL;
+    media_consumers.rtsp = NULL; /* 编码线程均已停止。 */
 
     if (video_capture_started &&
         video_capture_stop(&g_pContext->video_capture) != 0) {

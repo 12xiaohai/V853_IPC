@@ -1,6 +1,8 @@
 #ifndef IPC_CAMERA_AUDIO_ENCODER_H
 #define IPC_CAMERA_AUDIO_ENCODER_H
 
+#include <media/mm_comm_aio.h>
+
 /*
  * 对外只暴露不透明上下文。调用者只负责配置和生命周期管理，
  * 不直接操作内部的 AI、AENC、绑定关系和取流线程。
@@ -12,9 +14,7 @@ typedef struct AudioEncoderContext AudioEncoderContext;
  * AW_MPI_AENC_ReleaseStream() 会把编码缓冲归还给 MPP。
  */
 typedef int (*AudioEncoderFrameCallback)(void *opaque,
-                                         const unsigned char *data,
-                                         unsigned int size,
-                                         unsigned long long pts);
+                                         const AUDIO_STREAM_S *stream);
 
 typedef struct AudioEncoderConfig {
     int ai_device;          /* 音频输入设备号，板载 AudioCodec 使用 0。 */

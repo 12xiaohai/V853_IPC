@@ -112,16 +112,14 @@ static void *audio_encoder_stream_thread(void *argument)
             }
 
             /*
-             * RTSP 回调必须发生在 ReleaseStream 之前。RTSP 模块会立即
-             * 深拷贝 AAC 帧，因此归还 AENC 缓冲后网络线程仍可安全发送。
+             * 消费回调必须发生在ReleaseStream之前。RTSP会立即深拷贝，
+             * MP4使用同步MUX接口，因此归还AENC缓冲后两者都能安全工作。
              */
             if (encoder->config.frame_callback != NULL &&
                 encoder->config.frame_callback(
                     encoder->config.frame_callback_opaque,
-                    stream.pStream,
-                    stream.mLen,
-                    (unsigned long long)stream.mTimeStamp) != 0) {
-                alogw("[AENC] RTSP audio queue rejected frame: id=%d",
+                    &stream) != 0) {
+                alogw("[AENC] Encoded-frame consumer rejected frame: id=%d",
                       stream.mId);
             }
         }
