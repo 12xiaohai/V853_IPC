@@ -76,7 +76,9 @@ isolated `feature/yolov8-edge-validation` branch. Its cleaned final snapshot
 has been merged into `main`; Stage 9.1 is complete, and Stages 9.2 through 9.7
 continue directly on `main`. Stage 9.2 now adds a dedicated VIPP 8 path that
 captures 320x320 NV12 at 10 fps, releases each VI frame before inference, and
-runs the YOLOv8 network continuously in one worker thread. Person detections,
+runs the YOLOv8 network continuously in one worker thread. Because a secondary
+VIPP may still deliver the sensor's 20 fps stream, VI PTS is also used to skip
+early frames and enforce the configured 10 fps inference rate. Person detections,
 source PTS, and inference latency are published as a mutex-protected snapshot
 for the later display and alarm-rule stages. The implementation has passed
 local syntax checks and is awaiting full Linux cross-build and board runtime

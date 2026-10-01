@@ -41,6 +41,9 @@ struct NpuDetectorContext {
     size_t input_buffer_size;
 
     unsigned long long captured_frames;
+    unsigned long long inferred_frames;
+    unsigned long long skipped_frames;
+    unsigned long long last_inference_pts_us;
     unsigned long long inference_failures;
     NpuDetectionSnapshot latest;
 };
@@ -146,7 +149,7 @@ static void log_detection_result(const NpuDetectorContext *detector,
     int index;
 
     alogd("[NPU] Realtime inference: frame=%llu, cost=%llu us, persons=%d",
-          detector->captured_frames,
+          detector->inferred_frames,
           inference_time_us,
           detection_count);
     for (index = 0; index < detection_count; ++index) {
@@ -180,6 +183,7 @@ static void *npu_detector_thread(void *argument)
         float **output_buffers;
         YoloDetection detections[YOLOV8_MAX_DETECTIONS];
         unsigned long long frame_pts_us;
+        unsigned long long frame_interval_us;
         unsigned long long start_us;
         unsigned long long end_us;
         int detection_count;
@@ -207,6 +211,31 @@ static void *npu_detector_thread(void *argument)
         consecutive_failures = 0U;
         ++detector->captured_frames;
         frame_pts_us = (unsigned long long)frame.VFrame.mpts;
+
+        /*
+         * V853的次级VIPP在use_current_win=1时可能忽略attributes.fps，仍按传感器
+         * 20 FPS出帧。这里利用原始PTS做第二层限频：未到下一个推理周期的帧立即
+         * 归还，不复制、不送NPU，从而让真实推理频率符合config.frame_rate。
+         */
+        frame_interval_us = 1000000ULL /
+                            (unsigned long long)detector->config.frame_rate;
+        if (detector->last_inference_pts_us != 0U &&
+            frame_pts_us > detector->last_inference_pts_us &&
+            frame_pts_us - detector->last_inference_pts_us <
+                frame_interval_us) {
+            ret = AW_MPI_VI_ReleaseFrame(detector->config.vi_device,
+                                         detector->config.vi_channel,
+                                         &frame);
+            if (ret != SUCCESS) {
+                aloge("[NPU] Release skipped frame failed: ret=%d, frame_id=%u",
+                      ret,
+                      frame.mId);
+            }
+            ++detector->skipped_frames;
+            continue;
+        }
+        detector->last_inference_pts_us = frame_pts_us;
+        ++detector->inferred_frames;
 
         /* 320 已满足 V853 的 32 字节对齐，因此两平面的有效大小可直接计算。 */
         if (frame.VFrame.mpVirAddr[0] == NULL ||
@@ -274,9 +303,9 @@ static void *npu_detector_thread(void *argument)
                                  end_us >= start_us ? end_us - start_us : 0U);
 
         /* 第一帧必打日志，之后按配置间隔输出，避免 10 fps 持续刷屏。 */
-        if (detector->captured_frames == 1U ||
+        if (detector->inferred_frames == 1U ||
             (detector->config.log_interval_frames > 0U &&
-             detector->captured_frames %
+             detector->inferred_frames %
                      detector->config.log_interval_frames ==
                  0U)) {
             log_detection_result(detector,
@@ -286,8 +315,11 @@ static void *npu_detector_thread(void *argument)
         }
     }
 
-    alogd("[NPU] Realtime detection thread stopped: frames=%llu, failures=%llu",
+    alogd("[NPU] Realtime detection thread stopped: received=%llu, "
+          "inferred=%llu, skipped=%llu, failures=%llu",
           detector->captured_frames,
+          detector->inferred_frames,
+          detector->skipped_frames,
           detector->inference_failures);
     return NULL;
 }
@@ -438,6 +470,9 @@ int npu_detector_start(NpuDetectorContext *detector)
 
     detector->stop_requested = 0;
     detector->captured_frames = 0U;
+    detector->inferred_frames = 0U;
+    detector->skipped_frames = 0U;
+    detector->last_inference_pts_us = 0U;
     detector->inference_failures = 0U;
     memset(&detector->latest, 0, sizeof(detector->latest));
     thread_ret = pthread_create(&detector->thread_id,
