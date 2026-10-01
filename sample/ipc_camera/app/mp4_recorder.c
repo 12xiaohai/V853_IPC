@@ -13,6 +13,8 @@
 #define MP4_RECORDER_PATH_SIZE 256
 #define MP4_SIMPLE_CACHE_SIZE (64 * 1024)
 #define MP4_MAX_PACKS_PER_FRAME 8
+#define MP4_VIDEO_STREAM_ID 0
+#define MP4_AUDIO_STREAM_ID 1
 
 struct Mp4RecorderContext {
     Mp4RecorderConfig config;
@@ -35,6 +37,32 @@ struct Mp4RecorderContext {
     unsigned long long skipped_video_frames;
     unsigned long long skipped_audio_frames;
 };
+
+/*
+ * 固定文件模式不需要切换FD，但MUX在正常收尾时仍会报告RECORD_DONE。
+ * 注册回调可以接收这些状态，避免SDK提示“User should RegisterCallback”。
+ */
+static ERRORTYPE mp4_mux_callback(void *cookie,
+                                  MPP_CHN_S *channel,
+                                  MPP_EVENT_TYPE event,
+                                  void *event_data)
+{
+    Mp4RecorderContext *recorder = cookie;
+
+    (void)channel;
+    if (recorder == NULL) {
+        return FAILURE;
+    }
+
+    if (event == MPP_EVENT_RECORD_DONE) {
+        int muxer_id = event_data != NULL ? *(int *)event_data : -1;
+        alogd("[MP4] MUX reported record done: muxer_id=%d", muxer_id);
+    } else if (event == MPP_EVENT_NEED_NEXT_FD) {
+        /* 阶段8.1未启用分段，正常运行不应收到该事件。 */
+        alogw("[MP4] MUX requested next file unexpectedly");
+    }
+    return SUCCESS;
+}
 
 /* 根据配置填写MP4中视频轨和音频轨的媒体参数。 */
 static void fill_mux_attributes(const Mp4RecorderContext *recorder,
@@ -125,6 +153,7 @@ int mp4_recorder_start(Mp4RecorderContext *recorder)
 {
     MUX_CHN_ATTR_S attributes;
     VencHeaderData header;
+    MPPCallbackInfo callback_info;
     ERRORTYPE ret;
 
     if (recorder == NULL || recorder->mux_started) {
@@ -153,6 +182,16 @@ int mp4_recorder_start(Mp4RecorderContext *recorder)
     }
     recorder->mux_created = 1;
 
+    memset(&callback_info, 0, sizeof(callback_info));
+    callback_info.cookie = recorder;
+    callback_info.callback = mp4_mux_callback;
+    ret = AW_MPI_MUX_RegisterCallback(recorder->config.mux_channel,
+                                      &callback_info);
+    if (ret != SUCCESS) {
+        aloge("[MP4] Register MUX callback failed: ret=%d", ret);
+        goto error;
+    }
+
     /*
      * 隧道Bind模式会由MPP自动建立“VENC通道 -> MUX视频流”映射；阶段8.1
      * 使用非隧道SendVideoStreamSync，因此必须显式把VENC 0映射到stream 0。
@@ -161,16 +200,18 @@ int mp4_recorder_start(Mp4RecorderContext *recorder)
      */
     ret = AW_MPI_MUX_SetVeChnBindStreamId(recorder->config.mux_channel,
                                            recorder->config.venc_channel,
-                                           0);
+                                           MP4_VIDEO_STREAM_ID);
     if (ret != SUCCESS) {
         aloge("[MP4] Bind VENC channel to MUX stream failed: "
-              "venc=%d, stream=0, ret=%d",
+              "venc=%d, stream=%d, ret=%d",
               recorder->config.venc_channel,
+              MP4_VIDEO_STREAM_ID,
               ret);
         goto error;
     }
-    alogd("[MP4] VENC-to-MUX mapping ready: venc=%d -> stream=0",
-          recorder->config.venc_channel);
+    alogd("[MP4] VENC-to-MUX mapping ready: venc=%d -> stream=%d",
+          recorder->config.venc_channel,
+          MP4_VIDEO_STREAM_ID);
 
     /* MP4的avcC解码配置需要SPS/PPS，必须在送入第一帧之前交给MUX。 */
     memset(&header, 0, sizeof(header));
@@ -253,7 +294,7 @@ int mp4_recorder_push_video(Mp4RecorderContext *recorder,
     local_stream.mpPack = local_packs;
     ret = AW_MPI_MUX_SendVideoStreamSync(recorder->config.mux_channel,
                                          &local_stream,
-                                         0);
+                                         MP4_VIDEO_STREAM_ID);
     if (ret != SUCCESS) {
         aloge("[MP4] Send video stream failed: seq=%u, ret=%d",
               stream->mSeq,
@@ -294,7 +335,7 @@ int mp4_recorder_push_audio(Mp4RecorderContext *recorder,
     local_stream = *stream;
     ret = AW_MPI_MUX_SendAudioStreamSync(recorder->config.mux_channel,
                                          &local_stream,
-                                         0);
+                                         MP4_AUDIO_STREAM_ID);
     if (ret != SUCCESS) {
         aloge("[MP4] Send audio stream failed: id=%d, ret=%d",
               stream->mId,
