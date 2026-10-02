@@ -133,7 +133,17 @@ concurrent media workers, and clean shutdown during playback; the user confirmed
 hearing the alarm. The user subsequently confirmed line-triggered sound, normal
 RTSP/MP4 audio/video playback during alarms, and repeated startup/shutdown without
 AO resource conflicts or hangs. Stage 9.6 functional acceptance is complete;
-Stage 9.7 long-duration and resilience tests have not yet been completed.
+Stage 9.7's first approximately 15-minute integration stress test failed:
+encoded audio/video stopped progressing near an MP4 segment boundary around
+minute 6. SIGINT was handled and the alarm/NPU stopped, but media shutdown did
+not complete. Shared-lock synchronous MUX submission is a suspected blocking
+path; the historical thread backtraces were not captured. Both tracks now use
+asynchronous MUX submission with bounded deep copies and release callbacks.
+Shutdown closes recording input before joining encoders and retains buffers if
+MUX cleanup fails. Host regressions, AddressSanitizer, and real-SDK ARM syntax
+checks passed; board stress/shutdown retesting and long-duration acceptance
+remain pending. The recorder startup log must show `mode=async-copy`. See
+`word/阶段9.7_集成压力测试与退出阻塞复盘.md` for evidence and retest requirements.
 See `word/阶段9.6_本地音频报警技术说明.md` for implementation, limitations, and tests.
 
 Test only the board's WAV/AO/speaker path (plays once, then waits for Ctrl+C):

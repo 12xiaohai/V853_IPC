@@ -25,6 +25,20 @@
 #define AAC_ADTS_HEADER_SIZE 7U
 #define AAC_ADTS_CRC_HEADER_SIZE 9U
 #define BYTES_PER_MIB (1024ULL * 1024ULL)
+/* 在途副本数量和总字节数都有上限；MPP不消费时不能无限malloc。 */
+#define MP4_VIDEO_SLOTS 64U
+#define MP4_AUDIO_SLOTS 128U
+#define MP4_PENDING_BYTES_LIMIT (8U * 1024U * 1024U)
+
+typedef struct Mp4PendingStream {
+    int used;
+    unsigned int token;
+    unsigned char *payload;
+    size_t bytes;
+    VENC_STREAM_S video;
+    VENC_PACK_S packs[MP4_MAX_PACKS_PER_FRAME];
+    AUDIO_STREAM_S audio;
+} Mp4PendingStream;
 
 typedef struct RecordingFileInfo {
     char path[MP4_RECORDER_PATH_SIZE];
@@ -46,9 +60,25 @@ struct Mp4RecorderContext {
     int accepting_frames;
     int waiting_for_key_frame;
 
-    /* 视频线程和音频线程都会调用push，使用同一把锁串行访问MUX。 */
+    /* 只串行“异步提交/控制”，绝不能持此锁等待MUX消费帧。 */
     pthread_mutex_t send_lock;
     int lock_initialized;
+
+    /*
+     * MUX可以在Send返回前回调，所以回调使用独立锁，不能重入send_lock。
+     * 在途槽保存描述符与码流副本，直到RELEASE_*_STREAM才可回收。
+     */
+    pthread_mutex_t pending_lock;
+    int pending_lock_initialized;
+    Mp4PendingStream video_pending[MP4_VIDEO_SLOTS];
+    Mp4PendingStream audio_pending[MP4_AUDIO_SLOTS];
+    size_t pending_bytes;
+    size_t pending_peak_bytes;
+    unsigned int pending_count;
+    unsigned int next_token;
+    unsigned long long released_video;
+    unsigned long long released_audio;
+    int async_failed;
 
     /*
      * MUX回调只投递“需要下一个文件”的事件，专用线程负责open和SwitchFd。
@@ -77,6 +107,115 @@ struct Mp4RecorderContext {
     unsigned long long skipped_audio_frames;
     unsigned long long stripped_adts_frames;
 };
+
+/* 调用者持pending_lock。每个槽只释放一次，计数与实际副本保持一致。 */
+static void free_pending_stream(Mp4RecorderContext *recorder,
+                                 Mp4PendingStream *pending)
+{
+    if (!pending->used) {
+        return;
+    }
+    recorder->pending_bytes -= pending->bytes;
+    --recorder->pending_count;
+    free(pending->payload);
+    memset(pending, 0, sizeof(*pending));
+}
+
+/*
+ * SDK的释放回调重建描述符，不返回我们原来的结构体地址。
+ * 因此用录像器自己的token匹配，而不是复用会循环的AENC mId/VENC mSeq。
+ */
+static void release_pending_stream(Mp4RecorderContext *recorder,
+                                    int video,
+                                    unsigned int token)
+{
+    Mp4PendingStream *slots = video ? recorder->video_pending
+                                   : recorder->audio_pending;
+    unsigned int count = video ? MP4_VIDEO_SLOTS : MP4_AUDIO_SLOTS;
+    unsigned int index;
+
+    pthread_mutex_lock(&recorder->pending_lock);
+    for (index = 0U; index < count; ++index) {
+        if (slots[index].used && slots[index].token == token) {
+            free_pending_stream(recorder, &slots[index]);
+            if (video) {
+                ++recorder->released_video;
+            } else {
+                ++recorder->released_audio;
+            }
+            pthread_mutex_unlock(&recorder->pending_lock);
+            return;
+        }
+    }
+    recorder->async_failed = 1;
+    pthread_mutex_unlock(&recorder->pending_lock);
+    aloge("[MP4] Unknown release: video=%d, token=%u", video, token);
+}
+
+/*
+ * 数量/内存耗尽或分配失败时停止本次录像接收，不阻塞RTSP和编码线程。
+ * 不能随意丢一个H.264 P帧后继续宣称录像完整；故障在stop时返回失败。
+ * 调用者持send_lock和pending_lock，回调从不获取send_lock。
+ */
+static Mp4PendingStream *allocate_pending_stream(Mp4RecorderContext *recorder,
+                                                int video,
+                                                size_t bytes)
+{
+    Mp4PendingStream *slots = video ? recorder->video_pending
+                                   : recorder->audio_pending;
+    unsigned int count = video ? MP4_VIDEO_SLOTS : MP4_AUDIO_SLOTS;
+    unsigned int index;
+
+    if (recorder->async_failed) {
+        recorder->accepting_frames = 0;
+        return NULL;
+    }
+    if (bytes > 0U && bytes <= MP4_PENDING_BYTES_LIMIT - recorder->pending_bytes) {
+        for (index = 0U; index < count; ++index) {
+            if (!slots[index].used) {
+                unsigned char *payload = malloc(bytes);
+                if (payload == NULL) {
+                    break;
+                }
+                slots[index].used = 1;
+                slots[index].payload = payload;
+                slots[index].bytes = bytes;
+                /* 只用正的31位token，避开SDK内部负值标记。 */
+                recorder->next_token = (recorder->next_token + 1U) & 0x7fffffffU;
+                if (recorder->next_token == 0U) {
+                    recorder->next_token = 1U;
+                }
+                slots[index].token = recorder->next_token;
+                ++recorder->pending_count;
+                recorder->pending_bytes += bytes;
+                if (recorder->pending_bytes > recorder->pending_peak_bytes) {
+                    recorder->pending_peak_bytes = recorder->pending_bytes;
+                }
+                return &slots[index];
+            }
+        }
+    }
+    recorder->async_failed = 1;
+    recorder->accepting_frames = 0;
+    aloge("[MP4] Async buffer exhausted: video=%d, request=%zu, "
+          "pending=%u/%zu bytes; recording input disabled",
+          video, bytes, recorder->pending_count, recorder->pending_bytes);
+    return NULL;
+}
+
+/* 只有未提交成功或MUX已经成功销毁，才允许直接释放未回调的副本。 */
+static void discard_failed_submission(Mp4RecorderContext *recorder,
+                                       Mp4PendingStream *pending,
+                                       unsigned int token)
+{
+    pthread_mutex_lock(&recorder->pending_lock);
+    if (pending->used && pending->token == token) {
+        free_pending_stream(recorder, pending);
+    }
+    recorder->async_failed = 1;
+    pthread_mutex_unlock(&recorder->pending_lock);
+    recorder->accepting_frames = 0;
+}
 
 /* 根据本地系统时间生成不会互相覆盖的MP4文件名。 */
 static int generate_segment_path(Mp4RecorderContext *recorder,
@@ -409,7 +548,7 @@ static int switch_to_next_segment(Mp4RecorderContext *recorder)
         return -1;
     }
 
-    /* 与音视频Send*StreamSync串行，防止切换文件时同时向MUX提交码流。 */
+    /* 与短时异步提交串行；不再等待某帧跨分段消费后才允许SwitchFd。 */
     pthread_mutex_lock(&recorder->send_lock);
     if (!recorder->accepting_frames || !recorder->mux_started) {
         pthread_mutex_unlock(&recorder->send_lock);
@@ -613,7 +752,19 @@ static ERRORTYPE mp4_mux_callback(void *cookie,
         return FAILURE;
     }
 
-    if (event == MPP_EVENT_RECORD_DONE) {
+    if (event == MPP_EVENT_RELEASE_VENC_STREAM && event_data != NULL) {
+        const MUX_VENC_STREAM_S *released = event_data;
+        release_pending_stream(recorder, 1, released->mVencStream.mSeq);
+    } else if (event == MPP_EVENT_RELEASE_AENC_STREAM && event_data != NULL) {
+        const MUX_AENC_STREAM_S *released = event_data;
+        release_pending_stream(recorder, 0,
+                               (unsigned int)released->mAencStream.mId);
+    } else if (event == MPP_EVENT_WRITE_DISK_ERROR) {
+        pthread_mutex_lock(&recorder->pending_lock);
+        recorder->async_failed = 1;
+        pthread_mutex_unlock(&recorder->pending_lock);
+        aloge("[MP4] MUX reported disk write failure; recording input disabled");
+    } else if (event == MPP_EVENT_RECORD_DONE) {
         int muxer_id = event_data != NULL ? *(int *)event_data : -1;
         int segment_promoted = 0;
         char active_path[MP4_RECORDER_PATH_SIZE];
@@ -801,7 +952,16 @@ Mp4RecorderContext *mp4_recorder_create(const Mp4RecorderConfig *config)
     }
     recorder->lock_initialized = 1;
 
+    if (pthread_mutex_init(&recorder->pending_lock, NULL) != 0) {
+        pthread_mutex_destroy(&recorder->send_lock);
+        free(recorder->h264_header);
+        free(recorder);
+        return NULL;
+    }
+    recorder->pending_lock_initialized = 1;
+
     if (pthread_mutex_init(&recorder->rotation_lock, NULL) != 0) {
+        pthread_mutex_destroy(&recorder->pending_lock);
         pthread_mutex_destroy(&recorder->send_lock);
         free(recorder->h264_header);
         free(recorder);
@@ -810,6 +970,7 @@ Mp4RecorderContext *mp4_recorder_create(const Mp4RecorderConfig *config)
     recorder->rotation_lock_initialized = 1;
     if (pthread_cond_init(&recorder->rotation_cond, NULL) != 0) {
         pthread_mutex_destroy(&recorder->rotation_lock);
+        pthread_mutex_destroy(&recorder->pending_lock);
         pthread_mutex_destroy(&recorder->send_lock);
         free(recorder->h264_header);
         free(recorder);
@@ -827,9 +988,13 @@ int mp4_recorder_start(Mp4RecorderContext *recorder)
     struct stat directory_status;
     ERRORTYPE ret;
 
-    if (recorder == NULL || recorder->mux_started) {
+    if (recorder == NULL || recorder->mux_started || recorder->mux_created) {
         return -1;
     }
+    /* 在StartChn之前清故障；Start内部的磁盘错误回调不能被随后覆盖。 */
+    pthread_mutex_lock(&recorder->pending_lock);
+    recorder->async_failed = 0;
+    pthread_mutex_unlock(&recorder->pending_lock);
 
     if (recorder->config.segment_duration_seconds > 0) {
         if (lstat(recorder->output_directory, &directory_status) != 0 ||
@@ -896,7 +1061,7 @@ int mp4_recorder_start(Mp4RecorderContext *recorder)
 
     /*
      * 隧道Bind模式会由MPP自动建立“VENC通道 -> MUX视频流”映射；阶段8.1
-     * 使用非隧道SendVideoStreamSync，因此必须显式把VENC 0映射到stream 0。
+     * 使用非隧道SendVideoStream，因此必须显式把VENC 0映射到stream 0。
      * 如果缺少这一步，SetH264SpsPpsInfo找不到对应视频轨，部分SDK版本会在
      * 第一个关键帧初始化MP4时访问无效的SPS/PPS节点并崩溃。
      */
@@ -956,7 +1121,7 @@ int mp4_recorder_start(Mp4RecorderContext *recorder)
     pthread_mutex_unlock(&recorder->send_lock);
 
     alogd("[MP4] Recorder started: mux=%d, video=%dx%d@%dfps, "
-          "audio=%dHz/%dch, segment=%ds, file=%s",
+          "audio=%dHz/%dch, segment=%ds, mode=async-copy, file=%s",
           recorder->config.mux_channel,
           recorder->config.width,
           recorder->config.height,
@@ -976,14 +1141,34 @@ int mp4_recorder_push_video(Mp4RecorderContext *recorder,
                             const VENC_STREAM_S *stream,
                             int key_frame)
 {
-    VENC_STREAM_S local_stream;
-    VENC_PACK_S local_packs[MP4_MAX_PACKS_PER_FRAME];
+    Mp4PendingStream *pending;
+    const VENC_PACK_S *source;
+    unsigned char *cursor;
+    size_t bytes;
+    unsigned int token;
     ERRORTYPE ret;
     int result = 0;
 
     if (recorder == NULL || stream == NULL || stream->mpPack == NULL ||
-        stream->mPackCount == 0U ||
-        stream->mPackCount > MP4_MAX_PACKS_PER_FRAME) {
+        stream->mPackCount != 1U) {
+        /* 本SDK的mpi_mux只展开首个pack；拒绝多pack，避免静默漏数据。 */
+        return -1;
+    }
+
+    source = &stream->mpPack[0];
+    bytes = (size_t)source->mLen0;
+    if (bytes > MP4_PENDING_BYTES_LIMIT ||
+        source->mLen1 > MP4_PENDING_BYTES_LIMIT - bytes) {
+        return -1;
+    }
+    bytes += source->mLen1;
+    if (source->mLen2 > MP4_PENDING_BYTES_LIMIT - bytes) {
+        return -1;
+    }
+    bytes += source->mLen2;
+    if (bytes == 0U || (source->mLen0 > 0U && source->mpAddr0 == NULL) ||
+        (source->mLen1 > 0U && source->mpAddr1 == NULL) ||
+        (source->mLen2 > 0U && source->mpAddr2 == NULL)) {
         return -1;
     }
 
@@ -999,28 +1184,55 @@ int mp4_recorder_push_video(Mp4RecorderContext *recorder,
         pthread_mutex_unlock(&recorder->send_lock);
         return 0;
     }
-    if (recorder->waiting_for_key_frame) {
-        recorder->waiting_for_key_frame = 0;
-        alogd("[MP4] First H.264 key frame received: pts=%llu us",
-              (unsigned long long)stream->mpPack[0].mPTS);
+    pthread_mutex_lock(&recorder->pending_lock);
+    pending = allocate_pending_stream(recorder, 1, bytes);
+    if (pending == NULL) {
+        pthread_mutex_unlock(&recorder->pending_lock);
+        pthread_mutex_unlock(&recorder->send_lock);
+        return -1;
     }
+    pending->video = *stream;
+    pending->packs[0] = *source;
+    pending->video.mpPack = pending->packs;
+    pending->video.mSeq = pending->token;
+    token = pending->token;
+    cursor = pending->payload;
+    /* 保留三段布局和原始偏移信息，只把每段地址指向自己的副本。 */
+    pending->packs[0].mpAddr0 = cursor;
+    if (source->mLen0 > 0U) {
+        memcpy(cursor, source->mpAddr0, source->mLen0);
+        cursor += source->mLen0;
+    }
+    pending->packs[0].mpAddr1 = cursor;
+    if (source->mLen1 > 0U) {
+        memcpy(cursor, source->mpAddr1, source->mLen1);
+        cursor += source->mLen1;
+    }
+    pending->packs[0].mpAddr2 = cursor;
+    if (source->mLen2 > 0U) {
+        memcpy(cursor, source->mpAddr2, source->mLen2);
+    }
+    pthread_mutex_unlock(&recorder->pending_lock);
 
-    /* 复制的是描述符，不复制码流；Sync接口返回前原始缓冲始终有效。 */
-    local_stream = *stream;
-    memcpy(local_packs,
-           stream->mpPack,
-           stream->mPackCount * sizeof(local_packs[0]));
-    local_stream.mpPack = local_packs;
-    ret = AW_MPI_MUX_SendVideoStreamSync(recorder->config.mux_channel,
-                                         &local_stream,
-                                         MP4_VIDEO_STREAM_ID);
+    /*
+     * 两轨统一使用Async：SDK的Sync内部也共用一把锁并sem_down等待释放，
+     * 仅拆应用层锁仍无法消除该等待。提交时不持pending_lock，允许早回调。
+     */
+    ret = AW_MPI_MUX_SendVideoStream(recorder->config.mux_channel,
+                                     &pending->video, MP4_VIDEO_STREAM_ID);
     if (ret != SUCCESS) {
         aloge("[MP4] Send video stream failed: seq=%u, ret=%d",
               stream->mSeq,
               ret);
+        discard_failed_submission(recorder, pending, token);
         result = -1;
     } else {
         ++recorder->video_frames;
+        if (recorder->waiting_for_key_frame) {
+            recorder->waiting_for_key_frame = 0;
+            alogd("[MP4] First H.264 key frame received: pts=%llu us",
+                  (unsigned long long)source->mPTS);
+        }
     }
     pthread_mutex_unlock(&recorder->send_lock);
     return result;
@@ -1030,6 +1242,9 @@ int mp4_recorder_push_audio(Mp4RecorderContext *recorder,
                             const AUDIO_STREAM_S *stream)
 {
     AUDIO_STREAM_S local_stream;
+    Mp4PendingStream *pending;
+    size_t bytes;
+    unsigned int token;
     ERRORTYPE ret;
     int adts_result;
     int result = 0;
@@ -1072,19 +1287,59 @@ int mp4_recorder_push_audio(Mp4RecorderContext *recorder,
         }
     }
 
-    ret = AW_MPI_MUX_SendAudioStreamSync(recorder->config.mux_channel,
-                                         &local_stream,
-                                         MP4_AUDIO_STREAM_ID);
+    bytes = (size_t)local_stream.mLen;
+    if (bytes > MP4_PENDING_BYTES_LIMIT ||
+        local_stream.mExtraLen > MP4_PENDING_BYTES_LIMIT - bytes ||
+        (local_stream.mExtraLen > 0U && local_stream.pStreamExtra == NULL)) {
+        pthread_mutex_unlock(&recorder->send_lock);
+        return -1;
+    }
+    bytes += local_stream.mExtraLen;
+    pthread_mutex_lock(&recorder->pending_lock);
+    pending = allocate_pending_stream(recorder, 0, bytes);
+    if (pending == NULL) {
+        pthread_mutex_unlock(&recorder->pending_lock);
+        pthread_mutex_unlock(&recorder->send_lock);
+        return -1;
+    }
+    pending->audio = local_stream;
+    pending->audio.mId = (int)pending->token;
+    token = pending->token;
+    pending->audio.pStream = pending->payload;
+    memcpy(pending->payload, local_stream.pStream, local_stream.mLen);
+    pending->audio.pStreamExtra = NULL;
+    if (local_stream.mExtraLen > 0U) {
+        pending->audio.pStreamExtra = pending->payload + local_stream.mLen;
+        memcpy(pending->audio.pStreamExtra, local_stream.pStreamExtra,
+               local_stream.mExtraLen);
+    }
+    pthread_mutex_unlock(&recorder->pending_lock);
+
+    /* 副本已经去掉ADTS；原AENC帧仍含ADTS，RTSP/独立AAC文件不受影响。 */
+    ret = AW_MPI_MUX_SendAudioStream(recorder->config.mux_channel,
+                                     &pending->audio, MP4_AUDIO_STREAM_ID);
     if (ret != SUCCESS) {
         aloge("[MP4] Send audio stream failed: id=%d, ret=%d",
               stream->mId,
               ret);
+        discard_failed_submission(recorder, pending, token);
         result = -1;
     } else {
         ++recorder->audio_frames;
     }
     pthread_mutex_unlock(&recorder->send_lock);
     return result;
+}
+
+void mp4_recorder_close_input(Mp4RecorderContext *recorder)
+{
+    if (recorder == NULL || !recorder->lock_initialized) {
+        return;
+    }
+    /* 主线程先关入口再join编码线程；不等待在途帧、不销毁MUX。 */
+    pthread_mutex_lock(&recorder->send_lock);
+    recorder->accepting_frames = 0;
+    pthread_mutex_unlock(&recorder->send_lock);
 }
 
 int mp4_recorder_stop(Mp4RecorderContext *recorder)
@@ -1096,11 +1351,8 @@ int mp4_recorder_stop(Mp4RecorderContext *recorder)
         return -1;
     }
 
-    if (recorder->lock_initialized) {
-        pthread_mutex_lock(&recorder->send_lock);
-        recorder->accepting_frames = 0;
-        pthread_mutex_unlock(&recorder->send_lock);
-    }
+    mp4_recorder_close_input(recorder);
+    alogd("[MP4] Stopping recorder: input closed, draining MUX-owned copies");
 
     /* 先停止切片线程，确保它不会与MUX停止/销毁过程并发调用SwitchFd。 */
     if (recorder->rotation_thread_created) {
@@ -1117,7 +1369,8 @@ int mp4_recorder_stop(Mp4RecorderContext *recorder)
         ret = AW_MPI_MUX_StopChn(recorder->config.mux_channel, FALSE);
         if (ret != SUCCESS) {
             aloge("[MP4] Stop MUX channel failed: ret=%d", ret);
-            result = -1;
+            /* MUX可能仍访问码流及cookie，不得继续释放。 */
+            return -1;
         }
         recorder->mux_started = 0;
     }
@@ -1125,9 +1378,28 @@ int mp4_recorder_stop(Mp4RecorderContext *recorder)
         ret = AW_MPI_MUX_DestroyChn(recorder->config.mux_channel);
         if (ret != SUCCESS) {
             aloge("[MP4] Destroy MUX channel failed: ret=%d", ret);
-            result = -1;
+            return -1;
         }
         recorder->mux_created = 0;
+    }
+    /* Destroy成功后SDK不再使用cookie/码流，才处理未收到释放通知的副本。 */
+    if (recorder->pending_lock_initialized) {
+        unsigned int index;
+        pthread_mutex_lock(&recorder->pending_lock);
+        if (recorder->pending_count > 0U) {
+            alogw("[MP4] MUX destroyed with %u unreleased copies", recorder->pending_count);
+            recorder->async_failed = 1;
+        }
+        for (index = 0U; index < MP4_VIDEO_SLOTS; ++index) {
+            free_pending_stream(recorder, &recorder->video_pending[index]);
+        }
+        for (index = 0U; index < MP4_AUDIO_SLOTS; ++index) {
+            free_pending_stream(recorder, &recorder->audio_pending[index]);
+        }
+        if (recorder->async_failed) {
+            result = -1;
+        }
+        pthread_mutex_unlock(&recorder->pending_lock);
     }
     if (recorder->output_fd >= 0) {
         /* StopChn已经要求MUX正常写完缓存和索引，随后关闭文件描述符。 */
@@ -1158,6 +1430,7 @@ int mp4_recorder_stop(Mp4RecorderContext *recorder)
           "skipped_video=%llu, skipped_audio=%llu, "
           "adts_stripped=%llu, completed_files=%llu, deleted_files=%llu, "
           "discarded_empty_files=%llu, "
+          "released_video=%llu, released_audio=%llu, pending=%u, peak_bytes=%zu, "
           "file=%s",
           recorder->video_frames,
           recorder->audio_frames,
@@ -1167,6 +1440,10 @@ int mp4_recorder_stop(Mp4RecorderContext *recorder)
           recorder->completed_files,
           recorder->deleted_files,
           recorder->discarded_empty_files,
+          recorder->released_video,
+          recorder->released_audio,
+          recorder->pending_count,
+          recorder->pending_peak_bytes,
           recorder->output_path);
     return result;
 }
@@ -1181,8 +1458,15 @@ void mp4_recorder_destroy(Mp4RecorderContext *recorder)
         recorder->output_fd >= 0) {
         mp4_recorder_stop(recorder);
     }
+    if (recorder->mux_started || recorder->mux_created) {
+        aloge("[MP4] Retaining context: MUX shutdown failed; buffers may still be owned by SDK");
+        return;
+    }
     if (recorder->lock_initialized) {
         pthread_mutex_destroy(&recorder->send_lock);
+    }
+    if (recorder->pending_lock_initialized) {
+        pthread_mutex_destroy(&recorder->pending_lock);
     }
     if (recorder->rotation_cond_initialized) {
         pthread_cond_destroy(&recorder->rotation_cond);

@@ -38,8 +38,9 @@ Mp4RecorderContext *mp4_recorder_create(const Mp4RecorderConfig *config);
 int mp4_recorder_start(Mp4RecorderContext *recorder);
 
 /*
- * Send*StreamSync() 在函数返回前消费当前码流，因此调用者随后即可把编码
- * 缓冲归还VENC/AENC，无需在录像模块中再复制一份大码流。
+ * push深拷贝码流并使用异步MUX接口。返回后调用者即可ReleaseStream；
+ * 录像副本由RELEASE_VENC_STREAM/RELEASE_AENC_STREAM回调回收。
+ * 在途数量/字节数超限时禁用本次录像接收并报告失败，不无限等待或分配。
  */
 int mp4_recorder_push_video(Mp4RecorderContext *recorder,
                             const VENC_STREAM_S *stream,
@@ -47,6 +48,8 @@ int mp4_recorder_push_video(Mp4RecorderContext *recorder,
 int mp4_recorder_push_audio(Mp4RecorderContext *recorder,
                             const AUDIO_STREAM_S *stream);
 
+/* 先关录像入口，再join编码线程；stop必须在生产者停止后调用。 */
+void mp4_recorder_close_input(Mp4RecorderContext *recorder);
 int mp4_recorder_stop(Mp4RecorderContext *recorder);
 void mp4_recorder_destroy(Mp4RecorderContext *recorder);
 

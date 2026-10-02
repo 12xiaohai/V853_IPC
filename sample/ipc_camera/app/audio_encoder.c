@@ -113,7 +113,7 @@ static void *audio_encoder_stream_thread(void *argument)
 
             /*
              * 消费回调必须发生在ReleaseStream之前。RTSP会立即深拷贝，
-             * MP4使用同步MUX接口，因此归还AENC缓冲后两者都能安全工作。
+             * MP4也深拷贝后异步送流，因此归还AENC缓冲后两者都能安全工作。
              */
             if (encoder->config.frame_callback != NULL &&
                 encoder->config.frame_callback(
@@ -306,7 +306,10 @@ int audio_encoder_stop(AudioEncoderContext *encoder)
         return -1;
     }
 
-    /* GetStream 最多等待 timeout_ms，先 join 可避免销毁正在使用的码流。 */
+    /*
+     * GetStream等待有timeout_ms上限；消费者也必须及时返回（MUX已改异步）。
+     * 这不代表驱动/文件IO具有硬超时；join前保留正在使用的码流。
+     */
     encoder->stop_requested = 1;
     if (encoder->thread_started) {
         thread_ret = pthread_join(encoder->stream_thread, NULL);

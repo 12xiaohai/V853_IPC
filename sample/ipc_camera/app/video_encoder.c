@@ -37,6 +37,23 @@ struct VideoEncoderContext {
     unsigned long long encoded_bytes;
 };
 
+/*
+ * 注册VENC事件后，缓冲满/编码超时会留下具体事件，而不是只有
+ * “User should RegisterCallback”。这里只记录，不在SDK回调里停止通道。
+ */
+static ERRORTYPE video_encoder_event(void *cookie, MPP_CHN_S *channel,
+                                     MPP_EVENT_TYPE event, void *data)
+{
+    (void)cookie;
+    (void)data;
+    if (event == MPP_EVENT_VENC_BUFFER_FULL || event == MPP_EVENT_VENC_TIMEOUT ||
+        event == MPP_EVENT_ERROR_ENCBUFFER_OVERFLOW) {
+        alogw("[VENC] Encoder event: channel=%d, event=%d",
+              channel != NULL ? channel->mChnId : -1, (int)event);
+    }
+    return SUCCESS;
+}
+
 /* VENC 的一帧可被拆成最多三段，写文件时必须按 0->1->2 顺序拼接。 */
 static int write_stream_pack(FILE *file, const VENC_PACK_S *pack)
 {
@@ -295,6 +312,7 @@ int video_encoder_start(VideoEncoderContext *encoder)
     VencHeaderData header;
     MPP_CHN_S vi_mpp_channel;
     MPP_CHN_S venc_mpp_channel;
+    MPPCallbackInfo callback_info;
     ERRORTYPE ret;
     int thread_ret;
 
@@ -348,6 +366,15 @@ int video_encoder_start(VideoEncoderContext *encoder)
         goto error;
     }
     encoder->channel_created = 1;
+
+    memset(&callback_info, 0, sizeof(callback_info));
+    callback_info.cookie = encoder;
+    callback_info.callback = video_encoder_event;
+    ret = AW_MPI_VENC_RegisterCallback(encoder->config.channel, &callback_info);
+    if (ret != SUCCESS) {
+        aloge("[VENC] Register callback failed: ret=%d", ret);
+        goto error;
+    }
 
     if (configure_rate_control(encoder) != 0) {
         goto error;

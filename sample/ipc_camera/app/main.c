@@ -84,7 +84,7 @@ static AudioAlarmContext *start_local_audio_alarm(const char *wav_path)
 /*
  * 一帧编码数据可能同时被多个消费者使用。编码线程只调用一次适配回调，
  * 这里再把同一块只读缓冲分别交给RTSP和MP4；两个消费者都必须在返回前
- * 完成复制或同步消费，因为回调返回后编码缓冲就会归还MPP。
+ * 完成深拷贝，因为回调返回后编码缓冲就会归还MPP。
  */
 typedef struct MediaConsumers {
     RtspStreamContext *rtsp;
@@ -93,7 +93,7 @@ typedef struct MediaConsumers {
 
 /*
  * 这是VENC与各码流消费者之间的适配函数。RTSP会深拷贝帧，MP4录像器
- * 则通过同步MUX接口在编码缓冲归还前完成消费。
+ * 同样深拷贝帧，交给异步MUX；不等待分段处理完成才归还编码缓冲。
  */
 static int dispatch_encoded_video(
     void *opaque,
@@ -820,6 +820,12 @@ cleanup:
     npu_detector_destroy(npu_detector);
     npu_detector = NULL;
 
+    /*
+     * 先关闭MP4入口，使正在收尾的编码线程不再送入新录像帧。
+     * 这里只关入口，仍保留MUX和它拥有的副本；生产者join后才统一收尾。
+     */
+    mp4_recorder_close_input(mp4_recorder);
+    alogd("[Main] Stopping audio encoder");
     /* 音频在 NPU 之前启动，因此继续按逆序停止。 */
     if (audio_encoder_started && audio_encoder_stop(audio_encoder) != 0) {
         ret = EXIT_FAILURE;
@@ -834,6 +840,7 @@ cleanup:
     time_osd_destroy(time_osd);
     time_osd = NULL;
 
+    alogd("[Main] Stopping video encoder");
     if (video_encoder_started && video_encoder_stop(video_encoder) != 0) {
         ret = EXIT_FAILURE;
     }
