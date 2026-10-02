@@ -122,12 +122,18 @@ the Stage 9.6 audio-alarm consumer to proceed. See
 Stage 9.6 now connects line-crossing and region-entry callbacks to one bounded
 audio-alarm queue. A dedicated worker parses `/lib/alarm.wav` as PCM16 mono WAV,
 plays the PCM samples through MPP AO device/channel 0, and uses release/EOF
-callbacks to protect buffer lifetime and confirm draining. Playback is serialized;
+callbacks to protect buffer lifetime and handle EOF; successful channel shutdown
+follows the SDK's drain path. Playback is serialized;
 both rules share a 15-second monotonic cooldown measured from playback start.
 Region exits remain log-only. Missing/unsupported WAV files or AO playback errors
 disable sound without stopping monitoring. Producers are joined before the alarm
 worker, and AO is closed before MPP shutdown. Host tests and real-SDK ARM syntax
-checks passed; V853 speaker, simultaneous media, and shutdown validation are pending.
+checks passed. V853 logs confirm region-triggered playback, cooldown suppression,
+concurrent media workers, and clean shutdown during playback; the user confirmed
+hearing the alarm. The user subsequently confirmed line-triggered sound, normal
+RTSP/MP4 audio/video playback during alarms, and repeated startup/shutdown without
+AO resource conflicts or hangs. Stage 9.6 functional acceptance is complete;
+Stage 9.7 long-duration and resilience tests have not yet been completed.
 See `word/阶段9.6_本地音频报警技术说明.md` for implementation, limitations, and tests.
 
 Test only the board's WAV/AO/speaker path (plays once, then waits for Ctrl+C):
