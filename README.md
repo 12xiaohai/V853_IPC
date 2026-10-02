@@ -112,8 +112,11 @@ misses cancel pending confirmation but do not imply exit. Long misses or stale
 snapshots expire tracks, so re-identification can generate another entry.
 Events are currently logged only; WAV playback belongs to Stage 9.6, and no
 region outline is drawn yet. Host geometry/state/tracking/lifecycle tests and
-ARM-target syntax checks have passed; V853 real-scene and media regression
-validation are pending. See
+ARM-target syntax checks have passed. V853 logs now confirm entry and exit for
+the same temporary track, subsequent entries, concurrent line-crossing events,
+and clean shutdown. Boundary jitter, same-ID re-entry, long-duration stability,
+and actual media playback remain pending; basic rule validation allows work on
+the Stage 9.6 audio-alarm consumer to proceed. See
 `word/阶段9.5_多边形区域入侵检测技术说明.md` for the implementation and test steps.
 
 Run the Stage 9.1 NPU self-test on the board:
