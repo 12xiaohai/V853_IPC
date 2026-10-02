@@ -12,6 +12,16 @@ Use `./sample_strip --vipp4-timing` for preview timing and
 `./sample_strip --vipp4-capture-only` to acquire/release VIPP4 frames without
 per-frame G2D/VO processing. VO initialization and other services remain enabled.
 Default startup is unchanged; no FIFO root cause or fix is claimed yet.
+The additional `./sample_strip --isp-3dnr-off` control keeps LCD/G2D processing
+and other services active, requests ISP0 `manual=1, tdf=0`, verifies the
+configuration every approximately five seconds, and restores the original
+manual/tdf values before ISP shutdown. It automatically enables VIPP4 timing.
+It uses the SDK's native 33-byte ISP configuration interface: the bundled
+MPI ModuleOnOff wrapper's byte-copy ABI does not match its public 32-bit-field
+structure. SDK files are not modified; config byte counts and updates are checked.
+Configuration readback is not proof that hardware D3D memory traffic is disabled;
+if the original mode was automatic, manual module control is an additional
+experimental limitation. This is a diagnostic option, not a confirmed fix.
 See `word/阶段9.7_VIPP4_FIFO溢出分支验证说明.md` for the test procedure.
 
 1. Process lifecycle and MPP system initialization.

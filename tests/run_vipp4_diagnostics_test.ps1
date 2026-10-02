@@ -15,15 +15,17 @@ try {
     $vippTestArgs = @('-std=gnu11', '-Wall', '-Wextra', '-Werror', '-g',
                       '-pthread', '-Itests/vipp4_stubs',
                       '-Isample/ipc_camera/include')
-    $vippTestBinary = 'output/vipp4_diagnostics_test.exe'
     if ($AddressSanitizer) {
         $vippTestArgs += '-fsanitize=address', '-fno-omit-frame-pointer'
-        $vippTestBinary = 'output/vipp4_diagnostics_test_asan.exe'
     }
-    & $vippCompilerPath @vippTestArgs 'tests/vipp4_diagnostics_test.c' '-o' $vippTestBinary
-    if ($LASTEXITCODE -ne 0) { throw 'VIPP4 test compilation failed' }
-    & (Join-Path $vippTestRoot $vippTestBinary)
-    if ($LASTEXITCODE -ne 0) { throw 'VIPP4 test failed' }
+    foreach ($vippTestName in @('vipp4_diagnostics_test', 'isp_3dnr_diagnostics_test')) {
+        $vippTestSuffix = if ($AddressSanitizer) { '_asan' } else { '' }
+        $vippTestBinary = "output/$vippTestName$vippTestSuffix.exe"
+        & $vippCompilerPath @vippTestArgs "tests/$vippTestName.c" '-o' $vippTestBinary
+        if ($LASTEXITCODE -ne 0) { throw "$vippTestName compilation failed" }
+        & (Join-Path $vippTestRoot $vippTestBinary)
+        if ($LASTEXITCODE -ne 0) { throw "$vippTestName failed" }
+    }
 } finally {
     $env:PATH = $vippOriginalPath
     Pop-Location

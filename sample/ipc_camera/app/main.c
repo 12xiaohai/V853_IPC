@@ -18,6 +18,7 @@
 #include "line_crossing.h"
 #include "region_intrusion.h"
 #include "npu_self_test.h"
+#include "isp_3dnr_diagnostics.h"
 #include "platform.h"
 #include "rtsp_stream.h"
 #include "time_osd.h"
@@ -273,6 +274,9 @@ int main(int argc, char *argv[])
     const char *realtime_npu_model_path = "/lib/yolov8n.nb";
     int vipp4_timing = 0;
     int vipp4_capture_only = 0;
+    int isp_3dnr_off = 0;
+    unsigned int isp_3dnr_checks = 0;
+    Isp3dnrDiagnostics isp_3dnr_diagnostics = {0};
 
     memset(&media_consumers, 0, sizeof(media_consumers));
 
@@ -334,6 +338,9 @@ int main(int argc, char *argv[])
                     realtime_npu_model_path = argv[++argument_index];
                 } else if (strcmp(argv[argument_index], "--vipp4-timing") == 0) {
                     vipp4_timing = 1;
+                } else if (strcmp(argv[argument_index], "--isp-3dnr-off") == 0) {
+                    isp_3dnr_off = 1;
+                    vipp4_timing = 1; /* C组保留LCD，自动记录原有耗时。 */
                 } else if (strcmp(argv[argument_index],
                                   "--vipp4-capture-only") == 0) {
                     vipp4_capture_only = 1;
@@ -347,7 +354,7 @@ int main(int argc, char *argv[])
         if (!arguments_valid) {
             aloge("[Main] Invalid arguments");
             aloge("Usage: %s [--npu-model MODEL.nb] [--vipp4-timing] "
-                  "[--vipp4-capture-only]", argv[0]);
+                  "[--vipp4-capture-only] [--isp-3dnr-off]", argv[0]);
             aloge("       %s --npu-self-test [MODEL.nb] [INPUT.nv12]",
                   argv[0]);
             aloge("       %s --audio-alarm-test [ALARM.wav]", argv[0]);
@@ -641,6 +648,17 @@ int main(int argc, char *argv[])
     npu_detector_started = 1;
 
     /*
+     * VIPP4/0/8都完成ISP_Run后再覆盖配置，避免后续启动重新装载参数。
+     * 只用于诊断：默认不调用任何新ISP配置接口；失败不能冒充有效C组。
+     */
+    if (isp_3dnr_off &&
+        isp_3dnr_diagnostics_disable(&isp_3dnr_diagnostics,
+                                     g_pContext->video_capture.isp_device) != 0) {
+        aloge("[Main] ISP 3DNR diagnostic setup failed; stopping invalid test");
+        goto cleanup;
+    }
+
+    /*
      * 阶段9.3沿用原项目的MPP ORL_RGN画框方案。画框线程只读取NPU
      * 最新快照，不持有NPU内部指针，也不会阻塞推理线程。框附着在编码
      * VIPP 0上，因此H.264裸流、RTSP和MP4都会看到相同的检测框。
@@ -793,12 +811,31 @@ int main(int argc, char *argv[])
     alogd("[Main] Application is running; press Ctrl+C to exit");
     while (g_exit_signal == 0) {
         sleep(1);
+        /* 每约5秒只读核对，防止ISP参数被覆盖后继续统计无效对照数据。 */
+        if (isp_3dnr_off && g_exit_signal == 0 &&
+            (++isp_3dnr_checks % 5U) == 0U) {
+            if (isp_3dnr_diagnostics_check(&isp_3dnr_diagnostics) != 0) {
+                aloge("[Main] ISP 3DNR diagnostic configuration lost; "
+                      "stopping invalid test");
+                goto cleanup;
+            }
+            alogd("[ISP3DNR-DIAG] Periodic configuration check OK: "
+                  "isp=%d manual=1 tdf=0",
+                  isp_3dnr_diagnostics.device);
+        }
     }
     alogd("[Main] Exit signal received: %d", (int)g_exit_signal);
 
     ret = EXIT_SUCCESS;
 
 cleanup:
+    /*
+     * 在NPU/VENC/VI中的任何ISP_Stop之前恢复，包括启动失败的回滚。
+     * 不在信号处理函数里调用SDK；SIGKILL/断电无法运行此恢复步骤。
+     */
+    if (isp_3dnr_diagnostics_restore(&isp_3dnr_diagnostics) != 0) {
+        ret = EXIT_FAILURE;
+    }
     /*
      * 统一失败回滚和正常退出入口。按启动顺序的反向销毁：
      * 规则 -> 报警AO -> ORL/NPU -> AI/AENC -> OSD -> VENC -> MUX/RTSP
