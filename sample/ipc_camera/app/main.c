@@ -271,6 +271,8 @@ int main(int argc, char *argv[])
      * UDISK上的候选文件，不必覆盖这个已知可启动的回退版本。
      */
     const char *realtime_npu_model_path = "/lib/yolov8n.nb";
+    int vipp4_timing = 0;
+    int vipp4_capture_only = 0;
 
     memset(&media_consumers, 0, sizeof(media_consumers));
 
@@ -312,18 +314,40 @@ int main(int argc, char *argv[])
      * 不接受未知选项，避免参数拼错后悄悄回退到旧模型。
      */
     if (argc > 1) {
-        if (argc == 3 && strcmp(argv[1], "--npu-model") == 0 &&
-            argv[2][0] != '\0') {
-            realtime_npu_model_path = argv[2];
-        } else if ((argc == 2 || argc == 3) &&
-                   strcmp(argv[1], "--audio-alarm-test") == 0) {
+        int arguments_valid = 1;
+        int argument_index;
+
+        /* 独立声音测试仍然单独使用，不能混入VIPP4对照测试选项。 */
+        if (strcmp(argv[1], "--audio-alarm-test") == 0) {
+            arguments_valid = argc == 2 || argc == 3;
             audio_alarm_test = 1;
             if (argc == 3) {
                 alarm_wav_path = argv[2];
             }
         } else {
+            /* 允许候选模型与诊断选项组合，A/B测试必须使用同一个模型。 */
+            for (argument_index = 1; argument_index < argc; ++argument_index) {
+                if (strcmp(argv[argument_index], "--npu-model") == 0 &&
+                    argument_index + 1 < argc &&
+                    argv[argument_index + 1][0] != '\0' &&
+                    argv[argument_index + 1][0] != '-') {
+                    realtime_npu_model_path = argv[++argument_index];
+                } else if (strcmp(argv[argument_index], "--vipp4-timing") == 0) {
+                    vipp4_timing = 1;
+                } else if (strcmp(argv[argument_index],
+                                  "--vipp4-capture-only") == 0) {
+                    vipp4_capture_only = 1;
+                    vipp4_timing = 1; /* 对照组自动记录取帧/归还帧耗时。 */
+                } else {
+                    arguments_valid = 0;
+                    break;
+                }
+            }
+        }
+        if (!arguments_valid) {
             aloge("[Main] Invalid arguments");
-            aloge("Usage: %s [--npu-model MODEL.nb]", argv[0]);
+            aloge("Usage: %s [--npu-model MODEL.nb] [--vipp4-timing] "
+                  "[--vipp4-capture-only]", argv[0]);
             aloge("       %s --npu-self-test [MODEL.nb] [INPUT.nv12]",
                   argv[0]);
             aloge("       %s --audio-alarm-test [ALARM.wav]", argv[0]);
@@ -340,6 +364,18 @@ int main(int argc, char *argv[])
     if (g_pContext == NULL) {
         aloge("[Main] Context allocation failed");
         goto cleanup;
+    }
+
+    g_pContext->video_capture.diagnostic_timing = vipp4_timing;
+    g_pContext->video_capture.diagnostic_capture_only = vipp4_capture_only;
+    if (vipp4_timing) {
+        alogd("[VIPP4-DIAG] mode=%s, clock=monotonic, "
+              "VIPP4/VO init and other services unchanged",
+              vipp4_capture_only ? "capture-only" : "preview-timing");
+        if (vipp4_capture_only) {
+            alogw("[VIPP4-DIAG] LCD has no new camera frames by design; "
+                  "G2D/VO per-frame processing bypassed");
+        }
     }
 
     if (initialize_context(g_pContext) != 0) {

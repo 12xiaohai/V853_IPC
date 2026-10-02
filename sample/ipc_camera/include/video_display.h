@@ -3,6 +3,8 @@
 
 #include <media/mm_comm_video.h>
 
+#include "vipp4_diagnostics.h"
+
 typedef struct VideoDisplayContext VideoDisplayContext;
 
 typedef struct VideoDisplayConfig {
@@ -22,6 +24,10 @@ int video_display_start(VideoDisplayContext *display);
 /* 将一帧 VI 图像旋转到 MMZ 帧池，再异步送入 VO。 */
 int video_display_submit(VideoDisplayContext *display,
                          const VIDEO_FRAME_INFO_S *source);
+/* 可选诊断接口：记录G2D/SendFrame调用耗时，不等待VO显示完成。 */
+int video_display_submit_timed(VideoDisplayContext *display,
+                               const VIDEO_FRAME_INFO_S *source,
+                               VideoDisplayTiming *timing);
 int video_display_stop(VideoDisplayContext *display);
 void video_display_destroy(VideoDisplayContext *display);
 

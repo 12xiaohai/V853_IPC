@@ -19,6 +19,8 @@ typedef struct VideoCaptureContext {
     int timeout_ms;                   /* GetFrame 单次等待超时时间。 */
     PIXEL_FORMAT_E pixel_format;      /* 本项目使用 NV21。 */
     struct VideoDisplayContext *display; /* 可选的 G2D/VO 显示模块。 */
+    int diagnostic_timing;            /* 开启单调时钟耗时统计，默认关闭。 */
+    int diagnostic_capture_only;      /* 只取/还帧，跳过逐帧G2D/VO；不关闭VIPP4。 */
 
     pthread_t thread_id;              /* 执行 GetFrame/ReleaseFrame 的工作线程。 */
     volatile int stop_requested;      /* 主线程通知采集线程退出的标志。 */

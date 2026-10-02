@@ -7,6 +7,13 @@ kept under `sdk`, so the project does not depend on its parent directory.
 
 ## Development stages
 
+The isolated `diagnostic/vipp4-fifo` branch adds an opt-in VIPP4 FIFO A/B test.
+Use `./sample_strip --vipp4-timing` for preview timing and
+`./sample_strip --vipp4-capture-only` to acquire/release VIPP4 frames without
+per-frame G2D/VO processing. VO initialization and other services remain enabled.
+Default startup is unchanged; no FIFO root cause or fix is claimed yet.
+See `word/阶段9.7_VIPP4_FIFO溢出分支验证说明.md` for the test procedure.
+
 1. Process lifecycle and MPP system initialization.
 2. Camera capture with VI.
 3. LCD preview with G2D rotation and VO.

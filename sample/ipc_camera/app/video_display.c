@@ -358,9 +358,20 @@ error:
 int video_display_submit(VideoDisplayContext *display,
                          const VIDEO_FRAME_INFO_S *source)
 {
+    /* 正常路径不读取诊断时钟，保留原来的接口和行为。 */
+    return video_display_submit_timed(display, source, NULL);
+}
+
+int video_display_submit_timed(VideoDisplayContext *display,
+                               const VIDEO_FRAME_INFO_S *source,
+                               VideoDisplayTiming *timing)
+{
     VideoDisplayBuffer *buffer;
     ERRORTYPE ret;
 
+    if (timing != NULL) {
+        memset(timing, 0, sizeof(*timing));
+    }
     if (display == NULL || source == NULL || !display->channel_started) {
         return -1;
     }
@@ -377,7 +388,14 @@ int video_display_submit(VideoDisplayContext *display,
         return 1;
     }
 
-    if (g2d_convert_frame(&display->g2d, source, &buffer->frame) != 0) {
+    if (timing != NULL) {
+        timing->g2d_begin_us = vipp4_monotonic_us();
+    }
+    ret = g2d_convert_frame(&display->g2d, source, &buffer->frame);
+    if (timing != NULL) {
+        timing->g2d_end_us = vipp4_monotonic_us();
+    }
+    if (ret != 0) {
         video_display_release_buffer(display, buffer->frame.mId, 0);
         return -1;
     }
@@ -386,10 +404,16 @@ int video_display_submit(VideoDisplayContext *display,
      * SendFrame 成功只表示 VO 接管了帧，不表示显示已完成。
      * 在 RELEASE_VIDEO_BUFFER 回调到来前，in_use 必须保持为 1。
      */
+    if (timing != NULL) {
+        timing->vo_begin_us = vipp4_monotonic_us();
+    }
     ret = AW_MPI_VO_SendFrame(display->layer,
                               display->channel,
                               &buffer->frame,
                               0);
+    if (timing != NULL) {
+        timing->vo_end_us = vipp4_monotonic_us();
+    }
     if (ret != SUCCESS) {
         alogw("[VO] SendFrame failed: ret=%d", ret);
         video_display_release_buffer(display, buffer->frame.mId, 0);
