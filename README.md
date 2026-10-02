@@ -110,7 +110,7 @@ image. Each temporary track independently confirms entry and exit over three
 consecutive snapshots; staying inside does not repeat an entry event. Short
 misses cancel pending confirmation but do not imply exit. Long misses or stale
 snapshots expire tracks, so re-identification can generate another entry.
-Events are currently logged only; WAV playback belongs to Stage 9.6, and no
+Events are logged and forwarded to the Stage 9.6 audio-alarm consumer; no
 region outline is drawn yet. Host geometry/state/tracking/lifecycle tests and
 ARM-target syntax checks have passed. V853 logs now confirm entry and exit for
 the same temporary track, subsequent entries, concurrent line-crossing events,
@@ -118,6 +118,35 @@ and clean shutdown. Boundary jitter, same-ID re-entry, long-duration stability,
 and actual media playback remain pending; basic rule validation allows work on
 the Stage 9.6 audio-alarm consumer to proceed. See
 `word/阶段9.5_多边形区域入侵检测技术说明.md` for the implementation and test steps.
+
+Stage 9.6 now connects line-crossing and region-entry callbacks to one bounded
+audio-alarm queue. A dedicated worker parses `/lib/alarm.wav` as PCM16 mono WAV,
+plays the PCM samples through MPP AO device/channel 0, and uses release/EOF
+callbacks to protect buffer lifetime and confirm draining. Playback is serialized;
+both rules share a 15-second monotonic cooldown measured from playback start.
+Region exits remain log-only. Missing/unsupported WAV files or AO playback errors
+disable sound without stopping monitoring. Producers are joined before the alarm
+worker, and AO is closed before MPP shutdown. Host tests and real-SDK ARM syntax
+checks passed; V853 speaker, simultaneous media, and shutdown validation are pending.
+See `word/阶段9.6_本地音频报警技术说明.md` for implementation, limitations, and tests.
+
+Test only the board's WAV/AO/speaker path (plays once, then waits for Ctrl+C):
+
+```sh
+./sample_strip --audio-alarm-test
+# Use a candidate file without replacing the system alarm asset:
+./sample_strip --audio-alarm-test /mnt/UDISK/alarm_pcm16.wav
+```
+
+Run host-only regression tests from the repository root, with `output` present:
+
+```sh
+cc -std=c11 -Wall -Wextra -Werror -pthread -Itests/stubs \
+   -Isample/ipc_camera/include tests/audio_alarm_test.c -o output/audio_alarm_test
+./output/audio_alarm_test
+```
+
+The fake AO header is for tests only and is not added to production include paths.
 
 Run the Stage 9.1 NPU self-test on the board:
 

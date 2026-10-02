@@ -8,6 +8,7 @@
 #include <unistd.h>
 
 #include "audio_encoder.h"
+#include "audio_alarm.h"
 #include "config.h"
 #include "context.h"
 #include "log.h"
@@ -30,6 +31,55 @@ static pthread_mutex_t g_mutex_mpp;
 static IpCameraContext *g_pContext;
 /* sig_atomic_t 保证信号处理函数对该变量的读写不会被打断。 */
 static volatile sig_atomic_t g_exit_signal;
+
+/* 规则线程只复制事件入队，耗时的WAV播放交给独立AO线程。 */
+static void dispatch_line_alarm(void *opaque, const LineCrossingEvent *event)
+{
+    AudioAlarmEvent alarm;
+    if (opaque == NULL || event == NULL) {
+        return;
+    }
+    memset(&alarm, 0, sizeof(alarm));
+    alarm.kind = AUDIO_ALARM_LINE_CROSSING;
+    alarm.track_id = event->track_id;
+    alarm.sequence = event->sequence;
+    alarm.frame_pts_us = event->frame_pts_us;
+    (void)audio_alarm_push(opaque, &alarm);
+}
+
+static void dispatch_region_alarm(void *opaque, const RegionIntrusionEvent *event)
+{
+    AudioAlarmEvent alarm;
+    /* 离开仍由区域模块记录，但不是危险进入事件，不触发声音。 */
+    if (opaque == NULL || event == NULL || event->type != REGION_INTRUSION_ENTER) {
+        return;
+    }
+    memset(&alarm, 0, sizeof(alarm));
+    alarm.kind = AUDIO_ALARM_REGION_ENTER;
+    alarm.track_id = event->track_id;
+    alarm.region_id = event->region_id;
+    alarm.sequence = event->sequence;
+    alarm.frame_pts_us = event->frame_pts_us;
+    (void)audio_alarm_push(opaque, &alarm);
+}
+
+static AudioAlarmContext *start_local_audio_alarm(const char *wav_path)
+{
+    AudioAlarmConfig config;
+    AudioAlarmContext *alarm;
+    memset(&config, 0, sizeof(config));
+    config.wav_path = wav_path;
+    config.ao_device = 0;
+    config.ao_channel = 0; /* AO与AI/AENC属于不同模块，通道0不互相冲突。 */
+    config.volume = 35;    /* 初次验证从适中音量开始，不使用额外的软件放大。 */
+    config.cooldown_ms = 15000U;
+    alarm = audio_alarm_create(&config);
+    if (alarm == NULL || audio_alarm_start(alarm) != 0) {
+        audio_alarm_destroy(alarm);
+        return NULL;
+    }
+    return alarm;
+}
 
 /*
  * 一帧编码数据可能同时被多个消费者使用。编码线程只调用一次适配回调，
@@ -210,6 +260,9 @@ int main(int argc, char *argv[])
     int region_intrusion_started = 0;
     RegionIntrusionContext *region_intrusion = NULL;
     RegionIntrusionConfig region_intrusion_config;
+    AudioAlarmContext *audio_alarm = NULL;
+    int audio_alarm_test = 0;
+    const char *alarm_wav_path = "/lib/alarm.wav";
     MediaConsumers media_consumers;
     const unsigned char *h264_header = NULL;
     size_t h264_header_size = 0U;
@@ -255,17 +308,25 @@ int main(int argc, char *argv[])
     /*
      * 正常监控模式的候选模型参数：
      *   sample_strip --npu-model /mnt/UDISK/yolov8n_hybrid_i16.nb
-     * 只接受完整的“选项+路径”，避免参数拼错后悄悄回退到旧模型。
+     * --audio-alarm-test [WAV]则运行独立声音诊断，不启动其他业务。
+     * 不接受未知选项，避免参数拼错后悄悄回退到旧模型。
      */
     if (argc > 1) {
         if (argc == 3 && strcmp(argv[1], "--npu-model") == 0 &&
             argv[2][0] != '\0') {
             realtime_npu_model_path = argv[2];
+        } else if ((argc == 2 || argc == 3) &&
+                   strcmp(argv[1], "--audio-alarm-test") == 0) {
+            audio_alarm_test = 1;
+            if (argc == 3) {
+                alarm_wav_path = argv[2];
+            }
         } else {
             aloge("[Main] Invalid arguments");
             aloge("Usage: %s [--npu-model MODEL.nb]", argv[0]);
             aloge("       %s --npu-self-test [MODEL.nb] [INPUT.nv12]",
                   argv[0]);
+            aloge("       %s --audio-alarm-test [ALARM.wav]", argv[0]);
             goto cleanup;
         }
     }
@@ -292,6 +353,27 @@ int main(int argc, char *argv[])
         goto cleanup;
     }
     platform_initialized = 1;
+
+    /* 单独测试扬声器/WAV/AO，不依赖摄像头、网络或NPU模型。播放一次后等Ctrl+C。 */
+    if (audio_alarm_test) {
+        AudioAlarmEvent test_event;
+        audio_alarm = start_local_audio_alarm(alarm_wav_path);
+        if (audio_alarm == NULL) {
+            aloge("[Main] Audio alarm self-test initialization failed");
+            goto cleanup;
+        }
+        memset(&test_event, 0, sizeof(test_event));
+        test_event.kind = AUDIO_ALARM_LINE_CROSSING;
+        if (audio_alarm_push(audio_alarm, &test_event) != 0) {
+            goto cleanup;
+        }
+        alogd("[Main] Audio alarm self-test queued; check sound/logs, Ctrl+C to exit");
+        while (g_exit_signal == 0) {
+            sleep(1);
+        }
+        ret = EXIT_SUCCESS;
+        goto cleanup;
+    }
 
     /*
      * 摄像头输出为 1920x1080 横屏，LCD 为 480x800 竖屏。
@@ -592,6 +674,15 @@ int main(int argc, char *argv[])
     lcd_detection_overlay_started = 1;
 
     /*
+     * 阶段9.6先启动消费者，再启动两个规则生产者。WAV缺失/格式不支持时
+     * 只禁用声音，仍保留检测日志、LCD、RTSP与MP4，不因报警文件退出整个应用。
+     */
+    audio_alarm = start_local_audio_alarm(alarm_wav_path);
+    if (audio_alarm == NULL) {
+        alogw("[Main] Local audio alarm unavailable; monitoring continues without sound");
+    }
+
+    /*
      * 阶段9.4在320x320模型坐标中放置一条贯穿画面中央的竖直警戒线。
      * A(160,0)->B(160,320)的正侧是画面左边，负侧是画面右边；因此
      * positive-to-negative表示从左向右越线，反方向同理。
@@ -611,6 +702,8 @@ int main(int argc, char *argv[])
     line_crossing_config.cooldown_ms = 3000U;
     line_crossing_config.poll_interval_ms = 50U;
     line_crossing_config.max_tracks = 16U;
+    line_crossing_config.event_callback = dispatch_line_alarm;
+    line_crossing_config.event_callback_opaque = audio_alarm;
 
     line_crossing = line_crossing_create(&line_crossing_config);
     if (line_crossing == NULL) {
@@ -627,7 +720,7 @@ int main(int argc, char *argv[])
      * 阶段9.5把NPU模型画面右半边作为禁入区域，顶点按顺序围成多边形。
      * 使用与越线相同的底边中点，但独立维护轨迹和区域状态。连续3个有效
      * 快照在内报告enter，连续3个在外报告leave；停留不重复报告。
-     * 这里只记录事件，音频回调在阶段9.6接入；本阶段尚未绘制区域边界。
+     * 阶段9.6接入音频回调，仅ENTER报警；区域边界仍未绘制。
      */
     memset(&region_intrusion_config, 0, sizeof(region_intrusion_config));
     region_intrusion_config.detector = npu_detector;
@@ -646,6 +739,8 @@ int main(int argc, char *argv[])
     region_intrusion_config.max_tracks = 16U;
     region_intrusion_config.poll_interval_ms = 50U;
     region_intrusion_config.stale_timeout_ms = 500U;
+    region_intrusion_config.event_callback = dispatch_region_alarm;
+    region_intrusion_config.event_callback_opaque = audio_alarm;
 
     region_intrusion = region_intrusion_create(&region_intrusion_config);
     if (region_intrusion == NULL) {
@@ -670,7 +765,8 @@ int main(int argc, char *argv[])
 cleanup:
     /*
      * 统一失败回滚和正常退出入口。按启动顺序的反向销毁：
-     * AI -> OSD -> VENC -> RTSP -> VI -> VO/G2D -> MPP -> 上下文 -> 日志。
+     * 规则 -> 报警AO -> ORL/NPU -> AI/AENC -> OSD -> VENC -> MUX/RTSP
+     * -> VI -> VO/G2D -> MPP -> 上下文 -> 日志。
      * 先停 VENC 再停 RTSP，可保证销毁 RTSP 后不会再有新编码帧入队。
      */
 
@@ -692,6 +788,13 @@ cleanup:
     }
     line_crossing_destroy(line_crossing);
     line_crossing = NULL;
+
+    /* 先join两个规则线程，保证销毁报警队列后不会再有回调入队。MPP此时仍有效。 */
+    if (audio_alarm_stop(audio_alarm) != 0) {
+        ret = EXIT_FAILURE;
+    }
+    audio_alarm_destroy(audio_alarm);
+    audio_alarm = NULL;
 
     if (lcd_detection_overlay_started &&
         detection_overlay_stop(lcd_detection_overlay) != 0) {
