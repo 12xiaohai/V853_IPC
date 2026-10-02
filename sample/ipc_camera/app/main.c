@@ -15,6 +15,7 @@
 #include "npu_detector.h"
 #include "detection_overlay.h"
 #include "line_crossing.h"
+#include "region_intrusion.h"
 #include "npu_self_test.h"
 #include "platform.h"
 #include "rtsp_stream.h"
@@ -206,6 +207,9 @@ int main(int argc, char *argv[])
     int line_crossing_started = 0;
     LineCrossingContext *line_crossing = NULL;
     LineCrossingConfig line_crossing_config;
+    int region_intrusion_started = 0;
+    RegionIntrusionContext *region_intrusion = NULL;
+    RegionIntrusionConfig region_intrusion_config;
     MediaConsumers media_consumers;
     const unsigned char *h264_header = NULL;
     size_t h264_header_size = 0U;
@@ -619,6 +623,41 @@ int main(int argc, char *argv[])
     }
     line_crossing_started = 1;
 
+    /*
+     * 阶段9.5把NPU模型画面右半边作为禁入区域，顶点按顺序围成多边形。
+     * 使用与越线相同的底边中点，但独立维护轨迹和区域状态。连续3个有效
+     * 快照在内报告enter，连续3个在外报告leave；停留不重复报告。
+     * 这里只记录事件，音频回调在阶段9.6接入；本阶段尚未绘制区域边界。
+     */
+    memset(&region_intrusion_config, 0, sizeof(region_intrusion_config));
+    region_intrusion_config.detector = npu_detector;
+    region_intrusion_config.model_width = npu_config.width;
+    region_intrusion_config.model_height = npu_config.height;
+    region_intrusion_config.region_id = 1U;
+    region_intrusion_config.point_count = 4U;
+    region_intrusion_config.points[0] = (RegionPoint){npu_config.width / 2, 0};
+    region_intrusion_config.points[1] = (RegionPoint){npu_config.width, 0};
+    region_intrusion_config.points[2] = (RegionPoint){npu_config.width, npu_config.height};
+    region_intrusion_config.points[3] = (RegionPoint){npu_config.width / 2, npu_config.height};
+    region_intrusion_config.enter_confirm_snapshots = 3U;
+    region_intrusion_config.leave_confirm_snapshots = 3U;
+    region_intrusion_config.match_distance_pixels = 96U;
+    region_intrusion_config.max_missing_snapshots = 5U;
+    region_intrusion_config.max_tracks = 16U;
+    region_intrusion_config.poll_interval_ms = 50U;
+    region_intrusion_config.stale_timeout_ms = 500U;
+
+    region_intrusion = region_intrusion_create(&region_intrusion_config);
+    if (region_intrusion == NULL) {
+        aloge("[Main] Region-intrusion context allocation failed");
+        goto cleanup;
+    }
+    if (region_intrusion_start(region_intrusion) != 0) {
+        aloge("[Main] Region-intrusion detector initialization failed");
+        goto cleanup;
+    }
+    region_intrusion_started = 1;
+
     /* 主线程不做媒体处理，只等待信号；实际工作由各子线程完成。 */
     alogd("[Main] Application is running; press Ctrl+C to exit");
     while (g_exit_signal == 0) {
@@ -636,11 +675,17 @@ cleanup:
      */
 
     /*
-     * 越线和两个ORL线程依赖NPU快照及VIPP 0/4，所以必须先停业务规则、
+     * 区域入侵、越线和两个ORL线程依赖NPU快照及VIPP 0/4，必须先停业务规则、
      * 再停画框，
      * 再停NPU、VENC和预览VI。stop还会拆除所有region，避免下次
      * 启动遇到句柄已存在。
      */
+    if (region_intrusion_started && region_intrusion_stop(region_intrusion) != 0) {
+        ret = EXIT_FAILURE;
+    }
+    region_intrusion_destroy(region_intrusion);
+    region_intrusion = NULL;
+
     if (line_crossing_started &&
         line_crossing_stop(line_crossing) != 0) {
         ret = EXIT_FAILURE;

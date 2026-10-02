@@ -100,7 +100,21 @@ snapshots. It tracks person bottom-center points with nearest-neighbor matching,
 uses a hysteresis band and per-track cooldown to suppress repeated events, and
 checks intersection with a finite directed line. The default line is vertical
 through the center of the 320x320 model image. Event callbacks are reserved for
-the later audio-alarm stage. The code is complete and awaits board validation.
+the later audio-alarm stage. Board logs have confirmed both crossing directions
+and clean shutdown; action correlation, boundary jitter, and cooldown tests
+remain pending.
+
+Stage 9.5 adds a polygon intrusion worker that consumes NPU snapshots without
+owning camera frames. The default region is the right half of the 320x320 model
+image. Each temporary track independently confirms entry and exit over three
+consecutive snapshots; staying inside does not repeat an entry event. Short
+misses cancel pending confirmation but do not imply exit. Long misses or stale
+snapshots expire tracks, so re-identification can generate another entry.
+Events are currently logged only; WAV playback belongs to Stage 9.6, and no
+region outline is drawn yet. Host geometry/state/tracking/lifecycle tests and
+ARM-target syntax checks have passed; V853 real-scene and media regression
+validation are pending. See
+`word/阶段9.5_多边形区域入侵检测技术说明.md` for the implementation and test steps.
 
 Run the Stage 9.1 NPU self-test on the board:
 
