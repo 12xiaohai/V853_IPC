@@ -4,7 +4,9 @@
 #include <pthread.h>
 #include <stdint.h>
 
-#include <media/mm_comm_vi.h>
+/* 这里只需要设备/像素类型，不引入完整VI驱动和Linux V4L2配置。 */
+#include <media/mm_common.h>
+#include <media/mm_comm_video.h>
 
 struct VideoDisplayContext;
 
@@ -33,9 +35,10 @@ typedef struct VideoCaptureContext {
     int thread_started;
 } VideoCaptureContext;
 
-typedef struct IpCameraContext {
-    int initialized;                  /* 应用级上下文是否已完成基础初始化。 */
-    VideoCaptureContext video_capture;/* 实时预览采集通路。 */
-} IpCameraContext;
+/*
+ * 应用级资源由application.c统一管理，不向功能模块暴露内部布局。
+ * VideoCaptureContext仍是VI运行时状态，不与纯配置混用。
+ */
+typedef struct IpCameraContext IpCameraContext;
 
 #endif

@@ -31,7 +31,7 @@ typedef struct NpuDetectorConfig {
     const char *model_path;
     /*
      * 可选的一次性调试抓帧路径。非NULL时保存第一张真正送入NPU的NV12帧；
-     * 只用于板端联调，确认后可在main.c中设为NULL关闭。
+     * 只用于板端联调，确认后可在config.c中设为NULL关闭。
      */
     const char *debug_dump_path;
     /* 第几个有效推理帧执行抓图；小于1时按第1帧处理。 */

@@ -5,6 +5,26 @@ application follows the original `sample/ipc_camera` source layout. The V853
 cross toolchain, headers, libraries, rootfs, and firmware packaging inputs are
 kept under `sdk`, so the project does not depend on its parent directory.
 
+## Application architecture
+
+The entry point now reads as a lifecycle: parse options, prepare configuration,
+create/start the application, wait for a signal, then stop/destroy and close logs.
+Read `sample/ipc_camera/app/main.c` first, `config.c` for default parameters, and
+`application.c` for startup dependencies, callbacks, and partial-failure cleanup.
+Media and detection modules still own their workers; no duplicate thread manager
+or hardware pipeline was added. See
+[the architecture refactor guide](word/架构重构_入口配置与应用生命周期技术说明.md)
+for ownership rules, regression results, and required board retesting.
+
+Run the host lifecycle/config regression with an installed MinGW clang:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tests/run_application_test.ps1 -Compiler clang
+```
+
+Add `-AddressSanitizer` for memory checks. Test binaries stay in ignored `output/`;
+these fake-module tests do not replace a full cross-build and board acceptance.
+
 ## Development stages
 
 1. Process lifecycle and MPP system initialization.

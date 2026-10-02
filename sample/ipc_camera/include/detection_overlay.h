@@ -24,7 +24,7 @@ typedef struct DetectionOverlayConfig {
     /*
      * 仅当NPU图像和目标编码画面方向不同时才启用。V853当前的
      * mirror/flip实测作用于共享sensor，VIPP 0和VIPP 8方向一致，
-     * 因此main.c中保持为0。
+     * 因此config.c中的默认映射保持为0。
      */
     int map_mirror;
     int map_flip;

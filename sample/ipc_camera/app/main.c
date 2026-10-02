@@ -1,179 +1,19 @@
 #define _POSIX_C_SOURCE 200809L
 
-#include <pthread.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
-#include "audio_encoder.h"
-#include "audio_alarm.h"
-#include "config.h"
-#include "context.h"
+#include "application.h"
 #include "log.h"
-#include "mp4_recorder.h"
-#include "npu_detector.h"
-#include "detection_overlay.h"
-#include "line_crossing.h"
-#include "region_intrusion.h"
 #include "npu_self_test.h"
-#include "platform.h"
-#include "rtsp_stream.h"
-#include "time_osd.h"
-#include "video_capture.h"
-#include "video_display.h"
-#include "video_encoder.h"
 
 #include <utils/plat_log.h>
 
-static pthread_mutex_t g_mutex_mpp;
-static IpCameraContext *g_pContext;
-/* sig_atomic_t 保证信号处理函数对该变量的读写不会被打断。 */
+/* 信号处理只写标志；资源清理由主线程执行，不在信号中调用日志或MPP。 */
 static volatile sig_atomic_t g_exit_signal;
-
-/* 规则线程只复制事件入队，耗时的WAV播放交给独立AO线程。 */
-static void dispatch_line_alarm(void *opaque, const LineCrossingEvent *event)
-{
-    AudioAlarmEvent alarm;
-    if (opaque == NULL || event == NULL) {
-        return;
-    }
-    memset(&alarm, 0, sizeof(alarm));
-    alarm.kind = AUDIO_ALARM_LINE_CROSSING;
-    alarm.track_id = event->track_id;
-    alarm.sequence = event->sequence;
-    alarm.frame_pts_us = event->frame_pts_us;
-    (void)audio_alarm_push(opaque, &alarm);
-}
-
-static void dispatch_region_alarm(void *opaque, const RegionIntrusionEvent *event)
-{
-    AudioAlarmEvent alarm;
-    /* 离开仍由区域模块记录，但不是危险进入事件，不触发声音。 */
-    if (opaque == NULL || event == NULL || event->type != REGION_INTRUSION_ENTER) {
-        return;
-    }
-    memset(&alarm, 0, sizeof(alarm));
-    alarm.kind = AUDIO_ALARM_REGION_ENTER;
-    alarm.track_id = event->track_id;
-    alarm.region_id = event->region_id;
-    alarm.sequence = event->sequence;
-    alarm.frame_pts_us = event->frame_pts_us;
-    (void)audio_alarm_push(opaque, &alarm);
-}
-
-static AudioAlarmContext *start_local_audio_alarm(const char *wav_path)
-{
-    AudioAlarmConfig config;
-    AudioAlarmContext *alarm;
-    memset(&config, 0, sizeof(config));
-    config.wav_path = wav_path;
-    config.ao_device = 0;
-    config.ao_channel = 0; /* AO与AI/AENC属于不同模块，通道0不互相冲突。 */
-    config.volume = 35;    /* 初次验证从适中音量开始，不使用额外的软件放大。 */
-    config.cooldown_ms = 15000U;
-    alarm = audio_alarm_create(&config);
-    if (alarm == NULL || audio_alarm_start(alarm) != 0) {
-        audio_alarm_destroy(alarm);
-        return NULL;
-    }
-    return alarm;
-}
-
-/*
- * 一帧编码数据可能同时被多个消费者使用。编码线程只调用一次适配回调，
- * 这里再把同一块只读缓冲分别交给RTSP和MP4；两个消费者都必须在返回前
- * 完成深拷贝，因为回调返回后编码缓冲就会归还MPP。
- */
-typedef struct MediaConsumers {
-    RtspStreamContext *rtsp;
-    Mp4RecorderContext *recorder;
-} MediaConsumers;
-
-/*
- * 这是VENC与各码流消费者之间的适配函数。RTSP会深拷贝帧，MP4录像器
- * 同样深拷贝帧，交给异步MUX；不等待分段处理完成才归还编码缓冲。
- */
-static int dispatch_encoded_video(
-    void *opaque,
-    const unsigned char *header,
-    size_t header_size,
-    const VENC_STREAM_S *stream,
-    int key_frame)
-{
-    MediaConsumers *consumers = opaque;
-    RtspStreamContext *rtsp;
-    Mp4RecorderContext *recorder;
-    const VENC_PACK_S *pack;
-    int result = 0;
-
-    if (consumers == NULL || stream == NULL || stream->mpPack == NULL ||
-        stream->mPackCount == 0U) {
-        return -1;
-    }
-    pack = &stream->mpPack[0];
-
-    /* 主线程可能在启动阶段接入录像器，先在锁内取得稳定指针快照。 */
-    pthread_mutex_lock(&g_mutex_mpp);
-    rtsp = consumers->rtsp;
-    recorder = consumers->recorder;
-    pthread_mutex_unlock(&g_mutex_mpp);
-
-    if (rtsp != NULL &&
-        rtsp_stream_push_h264(rtsp,
-                              header,
-                              header_size,
-                              pack->mpAddr0,
-                              pack->mLen0,
-                              pack->mpAddr1,
-                              pack->mLen1,
-                              pack->mpAddr2,
-                              pack->mLen2,
-                              (unsigned long long)pack->mPTS,
-                              key_frame) != 0) {
-        result = -1;
-    }
-
-    if (recorder != NULL &&
-        mp4_recorder_push_video(recorder,
-                                stream,
-                                key_frame) != 0) {
-        result = -1;
-    }
-    return result;
-}
-
-/* 把同一帧AAC分发给RTSP和MP4，并保留AENC给出的原始PTS。 */
-static int dispatch_encoded_audio(void *opaque,
-                                  const AUDIO_STREAM_S *stream)
-{
-    MediaConsumers *consumers = opaque;
-    RtspStreamContext *rtsp;
-    Mp4RecorderContext *recorder;
-    int result = 0;
-
-    if (consumers == NULL || stream == NULL) {
-        return -1;
-    }
-    pthread_mutex_lock(&g_mutex_mpp);
-    rtsp = consumers->rtsp;
-    recorder = consumers->recorder;
-    pthread_mutex_unlock(&g_mutex_mpp);
-
-    if (rtsp != NULL &&
-        rtsp_stream_push_aac(rtsp,
-                             stream->pStream,
-                             stream->mLen,
-                             (unsigned long long)stream->mTimeStamp) != 0) {
-        result = -1;
-    }
-    if (recorder != NULL &&
-        mp4_recorder_push_audio(recorder, stream) != 0) {
-        result = -1;
-    }
-    return result;
-}
 
 static void handle_exit_signal(int signal_number)
 {
@@ -206,129 +46,49 @@ static int install_signal_handlers(void)
     return 0;
 }
 
-static int initialize_context(IpCameraContext *context)
-{
-    if (context == NULL) {
-        return -1;
-    }
 
-    context->initialized = 1;
-    return 0;
+static void main_loop(IpCameraRunMode mode)
+{
+    if (mode == IPC_CAMERA_AUDIO_ALARM_TEST) {
+        alogd("[Main] Audio alarm self-test queued; check sound/logs, Ctrl+C to exit");
+    } else {
+        alogd("[Main] Application is running; press Ctrl+C to exit");
+    }
+    /* 子模块各自运行工作线程，入口线程只负责等待退出。 */
+    while (g_exit_signal == 0) {
+        sleep(1);
+    }
+    alogd("[Main] Exit signal received: %d", (int)g_exit_signal);
 }
 
 int main(int argc, char *argv[])
 {
-    /*
-     * ret 默认为失败。只有程序进入主循环并收到正常退出信号后，
-     * 才改为 EXIT_SUCCESS。每个 started/initialized 标志决定 cleanup 能否操作对应资源。
-     */
-    int ret = EXIT_FAILURE;
-    int mutex_initialized = 0;
+    int result = EXIT_FAILURE;
     int log_initialized = 0;
-    int platform_initialized = 0;
-    int video_capture_started = 0;
-    int video_display_started = 0;
-    VideoDisplayContext *video_display = NULL;
-    VideoDisplayConfig display_config;
-    int video_encoder_started = 0;
-    VideoEncoderContext *video_encoder = NULL;
-    VideoEncoderConfig encoder_config;
-    int time_osd_started = 0;
-    TimeOsdContext *time_osd = NULL;
-    TimeOsdConfig time_osd_config;
-    int rtsp_stream_started = 0;
-    RtspStreamContext *rtsp_stream = NULL;
-    RtspStreamConfig rtsp_config;
-    int audio_encoder_started = 0;
-    AudioEncoderContext *audio_encoder = NULL;
-    AudioEncoderConfig audio_config;
-    int mp4_recorder_started = 0;
-    Mp4RecorderContext *mp4_recorder = NULL;
-    Mp4RecorderConfig mp4_config;
-    int npu_detector_started = 0;
-    NpuDetectorContext *npu_detector = NULL;
-    NpuDetectorConfig npu_config;
-    int detection_overlay_started = 0;
-    DetectionOverlayContext *detection_overlay = NULL;
-    DetectionOverlayConfig detection_overlay_config;
-    int lcd_detection_overlay_started = 0;
-    DetectionOverlayContext *lcd_detection_overlay = NULL;
-    DetectionOverlayConfig lcd_detection_overlay_config;
-    int line_crossing_started = 0;
-    LineCrossingContext *line_crossing = NULL;
-    LineCrossingConfig line_crossing_config;
-    int region_intrusion_started = 0;
-    RegionIntrusionContext *region_intrusion = NULL;
-    RegionIntrusionConfig region_intrusion_config;
-    AudioAlarmContext *audio_alarm = NULL;
-    int audio_alarm_test = 0;
-    const char *alarm_wav_path = "/lib/alarm.wav";
-    MediaConsumers media_consumers;
-    const unsigned char *h264_header = NULL;
-    size_t h264_header_size = 0U;
-    /*
-     * 默认加载开发板系统模型。调试新NBG时可用--npu-model指向
-     * UDISK上的候选文件，不必覆盖这个已知可启动的回退版本。
-     */
-    const char *realtime_npu_model_path = "/lib/yolov8n.nb";
+    IpCameraOptions options;
+    IpCameraConfig config;
+    IpCameraContext *context = NULL;
 
-    memset(&media_consumers, 0, sizeof(media_consumers));
-
-    /* 保留原项目的全局 MPP 互斥量，供后续多模块协作扩展。 */
-    if (pthread_mutex_init(&g_mutex_mpp, NULL) != 0) {
-        return EXIT_FAILURE;
-    }
-    mutex_initialized = 1;
-
-    if (install_signal_handlers() != 0) {
-        goto cleanup;
-    }
-
-    /* 先启动日志，以便后续每一个初始化错误都能被记录。 */
-    if (init_glog(argv) != 0) {
+    /* 1. 准备信号和日志，随后任何失败都走同一个cleanup入口。 */
+    g_exit_signal = 0;
+    if (install_signal_handlers() != 0 || init_glog(argv) != 0) {
         goto cleanup;
     }
     log_initialized = 1;
-
-    /*
-     * 阶段9.1提供独立NPU自检模式，不启动摄像头、编码、RTSP和录像链路。
-     * 用法：sample_strip --npu-self-test [model.nb] [input.nv12]
-     */
-    if (argc > 1 && strcmp(argv[1], "--npu-self-test") == 0) {
-        const char *model_path = argc > 2 ? argv[2] : "/lib/yolov8n.nb";
-        const char *input_path = argc > 3 ? argv[3] : NULL;
-
-        alogd("[Main] Running Stage 9.1 NPU single-frame self-test");
-        ret = npu_self_test_run(model_path, input_path, 0.25f) == 0
-                  ? EXIT_SUCCESS
-                  : EXIT_FAILURE;
+    if (ip_camera_options_parse(argc, argv, &options) != 0) {
+        aloge("[Main] Invalid arguments");
+        aloge("Usage: %s [--npu-model MODEL.nb]", argv[0]);
+        aloge("       %s --npu-self-test [MODEL.nb] [INPUT.nv12]", argv[0]);
+        aloge("       %s --audio-alarm-test [ALARM.wav]", argv[0]);
         goto cleanup;
     }
 
-    /*
-     * 正常监控模式的候选模型参数：
-     *   sample_strip --npu-model /mnt/UDISK/yolov8n_hybrid_i16.nb
-     * --audio-alarm-test [WAV]则运行独立声音诊断，不启动其他业务。
-     * 不接受未知选项，避免参数拼错后悄悄回退到旧模型。
-     */
-    if (argc > 1) {
-        if (argc == 3 && strcmp(argv[1], "--npu-model") == 0 &&
-            argv[2][0] != '\0') {
-            realtime_npu_model_path = argv[2];
-        } else if ((argc == 2 || argc == 3) &&
-                   strcmp(argv[1], "--audio-alarm-test") == 0) {
-            audio_alarm_test = 1;
-            if (argc == 3) {
-                alarm_wav_path = argv[2];
-            }
-        } else {
-            aloge("[Main] Invalid arguments");
-            aloge("Usage: %s [--npu-model MODEL.nb]", argv[0]);
-            aloge("       %s --npu-self-test [MODEL.nb] [INPUT.nv12]",
-                  argv[0]);
-            aloge("       %s --audio-alarm-test [ALARM.wav]", argv[0]);
-            goto cleanup;
-        }
+    /* NPU单帧自检不创建应用服务，也不初始化MPP平台。 */
+    if (options.mode == IPC_CAMERA_NPU_SELF_TEST) {
+        alogd("[Main] Running Stage 9.1 NPU single-frame self-test");
+        result = npu_self_test_run(options.model_path, options.input_path, 0.25f)
+                     == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
+        goto cleanup;
     }
 
     alogd("======================================================");
@@ -336,566 +96,37 @@ int main(int argc, char *argv[])
     alogd("[Main] Build date: %s %s", __DATE__, __TIME__);
     alogd("======================================================");
 
-    g_pContext = constructIpCameraContext();
-    if (g_pContext == NULL) {
+    /* 2. 默认参数集中生成；命令行只覆盖明确指定的路径。 */
+    ip_camera_config_defaults(&config);
+    config.npu.model_path = options.model_path;
+    config.alarm.wav_path = options.alarm_path;
+    context = ip_camera_application_create(&config);
+    if (context == NULL) {
         aloge("[Main] Context allocation failed");
         goto cleanup;
     }
 
-    if (initialize_context(g_pContext) != 0) {
-        aloge("[Main] Context initialization failed");
+    /* 3. 应用层负责启动依赖和部分初始化状态，main不展开模块细节。 */
+    if (ip_camera_application_start(context, options.mode) != 0) {
+        aloge("[Main] Application initialization failed");
         goto cleanup;
     }
 
-    /* MPP 是所有媒体通路的公共基础，必须第一个启动。 */
-    if (platform_init() != 0) {
-        aloge("[Main] Platform initialization failed");
-        goto cleanup;
-    }
-    platform_initialized = 1;
-
-    /* 单独测试扬声器/WAV/AO，不依赖摄像头、网络或NPU模型。播放一次后等Ctrl+C。 */
-    if (audio_alarm_test) {
-        AudioAlarmEvent test_event;
-        audio_alarm = start_local_audio_alarm(alarm_wav_path);
-        if (audio_alarm == NULL) {
-            aloge("[Main] Audio alarm self-test initialization failed");
-            goto cleanup;
-        }
-        memset(&test_event, 0, sizeof(test_event));
-        test_event.kind = AUDIO_ALARM_LINE_CROSSING;
-        if (audio_alarm_push(audio_alarm, &test_event) != 0) {
-            goto cleanup;
-        }
-        alogd("[Main] Audio alarm self-test queued; check sound/logs, Ctrl+C to exit");
-        while (g_exit_signal == 0) {
-            sleep(1);
-        }
-        ret = EXIT_SUCCESS;
-        goto cleanup;
-    }
-
-    /*
-     * 摄像头输出为 1920x1080 横屏，LCD 为 480x800 竖屏。
-     * 先用 G2D 旋转 270 度得到 1080x1920，再由 VO 缩放到 LCD 矩形。
-     */
-    memset(&display_config, 0, sizeof(display_config));
-    display_config.source_width = g_pContext->video_capture.width;
-    display_config.source_height = g_pContext->video_capture.height;
-    display_config.pixel_format = g_pContext->video_capture.pixel_format;
-    display_config.rotation = 270;
-    display_config.display_x = 0;
-    display_config.display_y = 0;
-    display_config.display_width = 480;
-    display_config.display_height = 800;
-
-    video_display = video_display_create(&display_config);
-    if (video_display == NULL) {
-        aloge("[Main] Video display context allocation failed");
-        goto cleanup;
-    }
-
-    if (video_display_start(video_display) != 0) {
-        aloge("[Main] Video display initialization failed");
-        goto cleanup;
-    }
-    video_display_started = 1;
-    g_pContext->video_capture.display = video_display;
-
-    /* 显示模块先于 VI 启动，避免采集到帧时还没有可用的显示目标。 */
-    if (video_capture_start(&g_pContext->video_capture) != 0) {
-        aloge("[Main] Video capture initialization failed");
-        goto cleanup;
-    }
-    video_capture_started = 1;
-
-    /*
-     * RTSP 在 VENC 前启动，这样第一个编码关键帧就能立即入队。
-     * session 0 对应 /ch0；16 帧约为 0.8 秒的 20 fps 视频。
-     */
-    memset(&rtsp_config, 0, sizeof(rtsp_config));
-    rtsp_config.session_id = 0;
-    rtsp_config.net_type = RTSP_NET_TYPE_WLAN0;
-    rtsp_config.frame_rate = g_pContext->video_capture.frame_rate;
-    rtsp_config.queue_capacity = 16;
-    rtsp_stream = rtsp_stream_create(&rtsp_config);
-    if (rtsp_stream == NULL) {
-        aloge("[Main] RTSP context allocation failed");
-        goto cleanup;
-    }
-    if (rtsp_stream_start(rtsp_stream) != 0) {
-        aloge("[Main] RTSP video service initialization failed");
-        goto cleanup;
-    }
-    rtsp_stream_started = 1;
-    media_consumers.rtsp = rtsp_stream; /* VENC线程尚未创建，无并发访问。 */
-
-    /*
-     * 编码使用独立 VIPP 0，与预览 VIPP 4 并行。VI -> VENC 由 MPP Bind
-     * 在内部传帧，应用只从 VENC 取压缩后的 H.264 数据。
-     */
-    memset(&encoder_config, 0, sizeof(encoder_config));
-    encoder_config.channel = 0;
-    encoder_config.vi_device = 0;
-    encoder_config.isp_device = 0;
-    encoder_config.vi_channel = 0;
-    encoder_config.width = g_pContext->video_capture.width;
-    encoder_config.height = g_pContext->video_capture.height;
-    encoder_config.frame_rate = g_pContext->video_capture.frame_rate;
-    encoder_config.bit_rate = 5242880;
-    encoder_config.gop_size = 75;
-    encoder_config.pixel_format = g_pContext->video_capture.pixel_format;
-    encoder_config.output_path = "/mnt/UDISK/sample_demo.h264";
-    encoder_config.frame_callback = dispatch_encoded_video;
-    encoder_config.frame_callback_opaque = &media_consumers;
-
-    video_encoder = video_encoder_create(&encoder_config);
-    if (video_encoder == NULL) {
-        aloge("[Main] Video encoder context allocation failed");
-        goto cleanup;
-    }
-
-    if (video_encoder_start(video_encoder) != 0) {
-        aloge("[Main] Video encoder initialization failed");
-        goto cleanup;
-    }
-    video_encoder_started = 1;
-
-    /*
-     * RGN附着在VENC通道0，所以本地H.264文件和RTSP视频都会包含时间。
-     * LCD预览来自另一条VI/G2D/VO通路，本阶段不会在LCD上重复叠加。
-     */
-    memset(&time_osd_config, 0, sizeof(time_osd_config));
-    time_osd_config.venc_channel = encoder_config.channel;
-    time_osd_config.handle = 0;
-    time_osd_config.x = 32;
-    time_osd_config.y = 32;
-    time_osd_config.update_seconds = 1;
-    time_osd = time_osd_create(&time_osd_config);
-    if (time_osd == NULL) {
-        aloge("[Main] Time OSD context allocation failed");
-        goto cleanup;
-    }
-    if (time_osd_start(time_osd) != 0) {
-        aloge("[Main] Time OSD initialization failed");
-        goto cleanup;
-    }
-    time_osd_started = 1;
-
-    /*
-     * 阶段8.2沿用阶段8.1的MPP MUX链路，并启用按时间命名的60秒分段录像。
-     * 录像、RTSP和裸流文件仍共享同一批带原始PTS的编码结果，不重复编码。
-     */
-    if (video_encoder_get_h264_header(video_encoder,
-                                      &h264_header,
-                                      &h264_header_size) != 0) {
-        aloge("[Main] Get H.264 SPS/PPS for MP4 failed");
-        goto cleanup;
-    }
-    memset(&mp4_config, 0, sizeof(mp4_config));
-    mp4_config.mux_channel = 0;
-    mp4_config.venc_channel = encoder_config.channel;
-    mp4_config.width = encoder_config.width;
-    mp4_config.height = encoder_config.height;
-    mp4_config.frame_rate = encoder_config.frame_rate;
-    mp4_config.gop_size = encoder_config.gop_size;
-    mp4_config.sample_rate = 16000;
-    mp4_config.audio_channels = 1;
-    mp4_config.audio_bit_width = 16;
-    mp4_config.samples_per_frame = 1024;
-    mp4_config.output_path = NULL; /* 分段模式下由录像器动态生成完整路径。 */
-    mp4_config.output_directory = "/mnt/UDISK";
-    mp4_config.file_prefix = "record";
-    mp4_config.segment_duration_seconds = 60;
-    /* 阶段8.3最多保留10段录像，并尽量保证UDISK至少剩余512 MiB。 */
-    mp4_config.max_segment_files = 10;
-    mp4_config.min_free_space_mb = 512;
-    mp4_config.h264_header = h264_header;
-    mp4_config.h264_header_size = h264_header_size;
-
-    mp4_recorder = mp4_recorder_create(&mp4_config);
-    if (mp4_recorder == NULL) {
-        aloge("[Main] MP4 recorder context allocation failed");
-        goto cleanup;
-    }
-    if (mp4_recorder_start(mp4_recorder) != 0) {
-        aloge("[Main] MP4 recorder initialization failed");
-        goto cleanup;
-    }
-    mp4_recorder_started = 1;
-    pthread_mutex_lock(&g_mutex_mpp);
-    media_consumers.recorder = mp4_recorder;
-    pthread_mutex_unlock(&g_mutex_mpp);
-    /* 避免录像器等待完整GOP，接入后立即请求一个新的MP4起始关键帧。 */
-    if (video_encoder_request_key_frame(video_encoder) != 0) {
-        alogw("[Main] Request key frame for MP4 failed; waiting for next GOP");
-    }
-
-    /*
-     * AI 与 AENC 由 MPP 绑定，应用取出带 ADTS 头的 AAC。阶段 6.3 在
-     * 保留本地 AAC 文件的同时，通过回调把同一帧送入 RTSP 音频队列。
-     */
-    memset(&audio_config, 0, sizeof(audio_config));
-    audio_config.ai_device = 0;
-    audio_config.ai_channel = 0;
-    audio_config.aenc_channel = 0;
-    audio_config.sample_rate = 16000;
-    audio_config.bit_width = 16;
-    audio_config.channels = 1;
-    audio_config.samples_per_frame = 1024;
-    audio_config.volume = 100;
-    audio_config.bit_rate = 0;
-    audio_config.timeout_ms = 200;
-    audio_config.output_path = "/mnt/UDISK/sample_demo.aac";
-    /* RTSP 未启动时保持回调为空，本地 AAC 文件仍可独立生成。 */
-    if (rtsp_stream_started) {
-        audio_config.frame_callback = dispatch_encoded_audio;
-        audio_config.frame_callback_opaque = &media_consumers;
-    }
-
-    audio_encoder = audio_encoder_create(&audio_config);
-    if (audio_encoder == NULL) {
-        aloge("[Main] Audio encoder context allocation failed");
-        goto cleanup;
-    }
-    if (audio_encoder_start(audio_encoder) != 0) {
-        aloge("[Main] AAC audio encoder initialization failed");
-        goto cleanup;
-    }
-    audio_encoder_started = 1;
-
-    /*
-     * 阶段 9.2 沿用原项目的独立 AI 采集通路：VIPP 8 直接输出模型需要的
-     * 320x320 NV12，不从 1920x1080 预览帧做 CPU 缩放，也不影响 VIPP 0 编码。
-     * 10 fps 足以进行监控检测，同时为后续越线/入侵逻辑和媒体线程留出余量。
-     */
-    memset(&npu_config, 0, sizeof(npu_config));
-    npu_config.vi_device = 8;
-    npu_config.isp_device = 0;
-    npu_config.vi_channel = 0;
-    npu_config.width = 320;
-    npu_config.height = 320;
-    npu_config.frame_rate = 10;
-    npu_config.buffer_count = 3;
-    npu_config.timeout_ms = 200;
-    /*
-     * VIPP 8抓帧证明图像为正确NV12，但物理安装方向导致人物倒置。
-     * 水平镜像+垂直翻转等效于旋转180度，让YOLOv8始终接收正立画面。
-     */
-    npu_config.mirror = 1;
-    npu_config.flip = 1;
-    npu_config.model_path = realtime_npu_model_path;
-    /* 阶段9.2诊断期间保存一张NPU真实输入；确认检测正常后可改为NULL。 */
-    npu_config.debug_dump_path = "/mnt/UDISK/npu_realtime_320x320.nv12";
-    /* 延迟到约第5秒抓图，给单人测试留出走进摄像头画面的时间。 */
-    npu_config.debug_dump_after_frames = 50U;
-    npu_config.confidence_threshold = 0.25f;
-    npu_config.nms_threshold = 0.45f;
-    npu_config.log_interval_frames = 50U;
-
-    npu_detector = npu_detector_create(&npu_config);
-    if (npu_detector == NULL) {
-        aloge("[Main] NPU detector context allocation failed");
-        goto cleanup;
-    }
-    if (npu_detector_start(npu_detector) != 0) {
-        aloge("[Main] Realtime NPU person detector initialization failed");
-        goto cleanup;
-    }
-    npu_detector_started = 1;
-
-    /*
-     * 阶段9.3沿用原项目的MPP ORL_RGN画框方案。画框线程只读取NPU
-     * 最新快照，不持有NPU内部指针，也不会阻塞推理线程。框附着在编码
-     * VIPP 0上，因此H.264裸流、RTSP和MP4都会看到相同的检测框。
-     * 时间OSD使用RGN handle 0，检测框使用100..115，避免句柄冲突。
-     */
-    memset(&detection_overlay_config, 0, sizeof(detection_overlay_config));
-    detection_overlay_config.detector = npu_detector;
-    detection_overlay_config.target_vi_device = encoder_config.vi_device;
-    detection_overlay_config.target_vi_channel = encoder_config.vi_channel;
-    detection_overlay_config.target_width = encoder_config.width;
-    detection_overlay_config.target_height = encoder_config.height;
-    detection_overlay_config.model_width = npu_config.width;
-    detection_overlay_config.model_height = npu_config.height;
-    /*
-     * 板端日志显示 SetVippMirror/Flip 最终配置的是共享 sensor：
-     *   [ISP] sensor set hflip:1, vflip:1
-     * 因此 VIPP 0 和 VIPP 8 会同时看到校正后的方向，画框坐标不能再做
-     * 一次 mirror/flip，否则会被重复旋转180度并跑到目标的对角。
-     */
-    detection_overlay_config.map_mirror = 0;
-    detection_overlay_config.map_flip = 0;
-    detection_overlay_config.region_handle_base = 100U;
-    detection_overlay_config.max_regions = 16U;
-    detection_overlay_config.color = 0xffd01bU; /* 黄色，在深浅背景上都较醒目。 */
-    detection_overlay_config.thickness = 4U;
-    detection_overlay_config.poll_interval_ms = 50U;
-    detection_overlay_config.stale_timeout_ms = 500U;
-
-    detection_overlay = detection_overlay_create(&detection_overlay_config);
-    if (detection_overlay == NULL) {
-        aloge("[Main] Detection overlay context allocation failed");
-        goto cleanup;
-    }
-    if (detection_overlay_start(detection_overlay) != 0) {
-        aloge("[Main] Detection overlay initialization failed");
-        goto cleanup;
-    }
-    detection_overlay_started = 1;
-
-    /*
-     * LCD预览来自VIPP 4，不会继承VIPP 0上的ORL。因此用独立句柄
-     * 200..215把同一份检测结果附着到VIPP 4。检测框会先成为
-     * 1920x1080预览帧的一部分，再和图像一起被G2D旋转270度并送往LCD，
-     * 所以不需要额外计算480x800的坐标。
-     */
-    lcd_detection_overlay_config = detection_overlay_config;
-    lcd_detection_overlay_config.target_vi_device =
-        g_pContext->video_capture.device;
-    lcd_detection_overlay_config.target_vi_channel =
-        g_pContext->video_capture.channel;
-    lcd_detection_overlay_config.target_width =
-        g_pContext->video_capture.width;
-    lcd_detection_overlay_config.target_height =
-        g_pContext->video_capture.height;
-    lcd_detection_overlay_config.region_handle_base = 200U;
-
-    lcd_detection_overlay =
-        detection_overlay_create(&lcd_detection_overlay_config);
-    if (lcd_detection_overlay == NULL) {
-        aloge("[Main] LCD detection overlay context allocation failed");
-        goto cleanup;
-    }
-    if (detection_overlay_start(lcd_detection_overlay) != 0) {
-        aloge("[Main] LCD detection overlay initialization failed");
-        goto cleanup;
-    }
-    lcd_detection_overlay_started = 1;
-
-    /*
-     * 阶段9.6先启动消费者，再启动两个规则生产者。WAV缺失/格式不支持时
-     * 只禁用声音，仍保留检测日志、LCD、RTSP与MP4，不因报警文件退出整个应用。
-     */
-    audio_alarm = start_local_audio_alarm(alarm_wav_path);
-    if (audio_alarm == NULL) {
-        alogw("[Main] Local audio alarm unavailable; monitoring continues without sound");
-    }
-
-    /*
-     * 阶段9.4在320x320模型坐标中放置一条贯穿画面中央的竖直警戒线。
-     * A(160,0)->B(160,320)的正侧是画面左边，负侧是画面右边；因此
-     * positive-to-negative表示从左向右越线，反方向同理。
-     * 规则线程只读取NPU快照，不接触VI帧，也不会阻塞NPU和媒体通路。
-     */
-    memset(&line_crossing_config, 0, sizeof(line_crossing_config));
-    line_crossing_config.detector = npu_detector;
-    line_crossing_config.model_width = npu_config.width;
-    line_crossing_config.model_height = npu_config.height;
-    line_crossing_config.line_ax = npu_config.width / 2;
-    line_crossing_config.line_ay = 0;
-    line_crossing_config.line_bx = npu_config.width / 2;
-    line_crossing_config.line_by = npu_config.height;
-    line_crossing_config.hysteresis_pixels = 12U;
-    line_crossing_config.match_distance_pixels = 96U;
-    line_crossing_config.max_missing_snapshots = 5U;
-    line_crossing_config.cooldown_ms = 3000U;
-    line_crossing_config.poll_interval_ms = 50U;
-    line_crossing_config.max_tracks = 16U;
-    line_crossing_config.event_callback = dispatch_line_alarm;
-    line_crossing_config.event_callback_opaque = audio_alarm;
-
-    line_crossing = line_crossing_create(&line_crossing_config);
-    if (line_crossing == NULL) {
-        aloge("[Main] Line-crossing context allocation failed");
-        goto cleanup;
-    }
-    if (line_crossing_start(line_crossing) != 0) {
-        aloge("[Main] Line-crossing detector initialization failed");
-        goto cleanup;
-    }
-    line_crossing_started = 1;
-
-    /*
-     * 阶段9.5把NPU模型画面右半边作为禁入区域，顶点按顺序围成多边形。
-     * 使用与越线相同的底边中点，但独立维护轨迹和区域状态。连续3个有效
-     * 快照在内报告enter，连续3个在外报告leave；停留不重复报告。
-     * 阶段9.6接入音频回调，仅ENTER报警；区域边界仍未绘制。
-     */
-    memset(&region_intrusion_config, 0, sizeof(region_intrusion_config));
-    region_intrusion_config.detector = npu_detector;
-    region_intrusion_config.model_width = npu_config.width;
-    region_intrusion_config.model_height = npu_config.height;
-    region_intrusion_config.region_id = 1U;
-    region_intrusion_config.point_count = 4U;
-    region_intrusion_config.points[0] = (RegionPoint){npu_config.width / 2, 0};
-    region_intrusion_config.points[1] = (RegionPoint){npu_config.width, 0};
-    region_intrusion_config.points[2] = (RegionPoint){npu_config.width, npu_config.height};
-    region_intrusion_config.points[3] = (RegionPoint){npu_config.width / 2, npu_config.height};
-    region_intrusion_config.enter_confirm_snapshots = 3U;
-    region_intrusion_config.leave_confirm_snapshots = 3U;
-    region_intrusion_config.match_distance_pixels = 96U;
-    region_intrusion_config.max_missing_snapshots = 5U;
-    region_intrusion_config.max_tracks = 16U;
-    region_intrusion_config.poll_interval_ms = 50U;
-    region_intrusion_config.stale_timeout_ms = 500U;
-    region_intrusion_config.event_callback = dispatch_region_alarm;
-    region_intrusion_config.event_callback_opaque = audio_alarm;
-
-    region_intrusion = region_intrusion_create(&region_intrusion_config);
-    if (region_intrusion == NULL) {
-        aloge("[Main] Region-intrusion context allocation failed");
-        goto cleanup;
-    }
-    if (region_intrusion_start(region_intrusion) != 0) {
-        aloge("[Main] Region-intrusion detector initialization failed");
-        goto cleanup;
-    }
-    region_intrusion_started = 1;
-
-    /* 主线程不做媒体处理，只等待信号；实际工作由各子线程完成。 */
-    alogd("[Main] Application is running; press Ctrl+C to exit");
-    while (g_exit_signal == 0) {
-        sleep(1);
-    }
-    alogd("[Main] Exit signal received: %d", (int)g_exit_signal);
-
-    ret = EXIT_SUCCESS;
+    /* 4. 正常退出才改为成功，清理失败仍会覆盖为失败。 */
+    main_loop(options.mode);
+    result = EXIT_SUCCESS;
 
 cleanup:
-    /*
-     * 统一失败回滚和正常退出入口。按启动顺序的反向销毁：
-     * 规则 -> 报警AO -> ORL/NPU -> AI/AENC -> OSD -> VENC -> MUX/RTSP
-     * -> VI -> VO/G2D -> MPP -> 上下文 -> 日志。
-     * 先停 VENC 再停 RTSP，可保证销毁 RTSP 后不会再有新编码帧入队。
-     */
-
-    /*
-     * 区域入侵、越线和两个ORL线程依赖NPU快照及VIPP 0/4，必须先停业务规则、
-     * 再停画框，
-     * 再停NPU、VENC和预览VI。stop还会拆除所有region，避免下次
-     * 启动遇到句柄已存在。
-     */
-    if (region_intrusion_started && region_intrusion_stop(region_intrusion) != 0) {
-        ret = EXIT_FAILURE;
+    /* 5. 正常退出和中途失败，都先停服务再释放上下文和日志。 */
+    if (ip_camera_application_stop(context) != 0) {
+        result = EXIT_FAILURE;
     }
-    region_intrusion_destroy(region_intrusion);
-    region_intrusion = NULL;
-
-    if (line_crossing_started &&
-        line_crossing_stop(line_crossing) != 0) {
-        ret = EXIT_FAILURE;
-    }
-    line_crossing_destroy(line_crossing);
-    line_crossing = NULL;
-
-    /* 先join两个规则线程，保证销毁报警队列后不会再有回调入队。MPP此时仍有效。 */
-    if (audio_alarm_stop(audio_alarm) != 0) {
-        ret = EXIT_FAILURE;
-    }
-    audio_alarm_destroy(audio_alarm);
-    audio_alarm = NULL;
-
-    if (lcd_detection_overlay_started &&
-        detection_overlay_stop(lcd_detection_overlay) != 0) {
-        ret = EXIT_FAILURE;
-    }
-    detection_overlay_destroy(lcd_detection_overlay);
-    lcd_detection_overlay = NULL;
-
-    if (detection_overlay_started &&
-        detection_overlay_stop(detection_overlay) != 0) {
-        ret = EXIT_FAILURE;
-    }
-    detection_overlay_destroy(detection_overlay);
-    detection_overlay = NULL;
-
-    /*
-     * NPU线程停止后才释放模型和VIPP 8，确保推理线程不会访问
-     * 已经销毁的VI帧或AWNN上下文。
-     */
-    if (npu_detector_started && npu_detector_stop(npu_detector) != 0) {
-        ret = EXIT_FAILURE;
-    }
-    npu_detector_destroy(npu_detector);
-    npu_detector = NULL;
-
-    /*
-     * 先关闭MP4入口，使正在收尾的编码线程不再送入新录像帧。
-     * 这里只关入口，仍保留MUX和它拥有的副本；生产者join后才统一收尾。
-     */
-    mp4_recorder_close_input(mp4_recorder);
-    alogd("[Main] Stopping audio encoder");
-    /* 音频在 NPU 之前启动，因此继续按逆序停止。 */
-    if (audio_encoder_started && audio_encoder_stop(audio_encoder) != 0) {
-        ret = EXIT_FAILURE;
-    }
-    audio_encoder_destroy(audio_encoder);
-    audio_encoder = NULL;
-
-    /* 必须先从VENC解绑并销毁RGN，之后才能销毁VENC通道本身。 */
-    if (time_osd_started && time_osd_stop(time_osd) != 0) {
-        ret = EXIT_FAILURE;
-    }
-    time_osd_destroy(time_osd);
-    time_osd = NULL;
-
-    alogd("[Main] Stopping video encoder");
-    if (video_encoder_started && video_encoder_stop(video_encoder) != 0) {
-        ret = EXIT_FAILURE;
-    }
-    video_encoder_destroy(video_encoder);
-    video_encoder = NULL;
-
-    /* 编码线程均停止后再让MUX写尾部索引，保证MP4能够被播放器定位。 */
-    pthread_mutex_lock(&g_mutex_mpp);
-    media_consumers.recorder = NULL;
-    pthread_mutex_unlock(&g_mutex_mpp);
-    if (mp4_recorder_started && mp4_recorder_stop(mp4_recorder) != 0) {
-        ret = EXIT_FAILURE;
-    }
-    mp4_recorder_destroy(mp4_recorder);
-    mp4_recorder = NULL;
-
-    if (rtsp_stream_started && rtsp_stream_stop(rtsp_stream) != 0) {
-        ret = EXIT_FAILURE;
-    }
-    rtsp_stream_destroy(rtsp_stream);
-    rtsp_stream = NULL;
-    media_consumers.rtsp = NULL; /* 编码线程均已停止。 */
-
-    if (video_capture_started &&
-        video_capture_stop(&g_pContext->video_capture) != 0) {
-        ret = EXIT_FAILURE;
-    }
-
-    if (g_pContext != NULL) {
-        g_pContext->video_capture.display = NULL;
-    }
-
-    if (video_display_started && video_display_stop(video_display) != 0) {
-        ret = EXIT_FAILURE;
-    }
-    video_display_destroy(video_display);
-    video_display = NULL;
-
-    if (platform_initialized && platform_deinit() != 0) {
-        ret = EXIT_FAILURE;
-    }
-
-    destructIpCameraContext(g_pContext);
-    g_pContext = NULL;
-
+    ip_camera_application_destroy(context);
     if (log_initialized) {
         alogd("======================================================");
-        alogd("[Main] Application exited with code: %d", ret);
+        alogd("[Main] Application exited with code: %d", result);
         alogd("======================================================");
         deinit_glog();
     }
-
-    if (mutex_initialized) {
-        pthread_mutex_destroy(&g_mutex_mpp);
-    }
-
-    return ret;
+    return result;
 }
