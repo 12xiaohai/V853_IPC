@@ -1,5 +1,11 @@
 # 阶段 2：VI 视频采集技术说明
 
+> 架构同步（2026-10-03）：当前main.c负责信号、运行模式与主循环，
+> 默认参数集中在config.c，服务启动/回调/清理由application.c负责。
+> 预览参数在config->preview；application的start_preview/stop管理显示与采集依赖。
+> 早期阶段范围、旧代码示例及实测日志属于当时快照，不表示重构后已完成板端复测。
+> 详见[架构重构说明](架构重构_入口配置与应用生命周期技术说明.md)。
+
 ## 1. 阶段目标
 
 本阶段在阶段 1 的 MPP 平台初始化和安全退出框架上，完成 V853 摄像头视频输入（VI）链路的最小闭环：
@@ -26,7 +32,8 @@ VI 虚拟通道 0
 | `sample/ipc_camera/include/video_capture.h` | 声明视频采集模块对外接口 |
 | `sample/ipc_camera/app/video_capture.c` | 实现 VI/ISP 创建、采集线程、帧获取与资源销毁 |
 | `sample/ipc_camera/app/config.c` | 初始化视频采集默认参数 |
-| `sample/ipc_camera/app/main.c` | 在 MPP 初始化后启动 VI，在 MPP 退出前停止 VI |
+| `sample/ipc_camera/app/application.c` | 在MPP/显示就绪后启动VI，在显示/MPP退出前停止VI |
+| `sample/ipc_camera/app/main.c` | 通过应用生命周期接口发起启动与清理 |
 | `README.md` | 更新当前复刻进度 |
 
 ## 3. 视频采集参数
@@ -46,11 +53,14 @@ VI 虚拟通道 0
 | 取帧超时 | 200 ms | `AW_MPI_VI_GetFrame()` 单次等待时间 |
 | WDR | 关闭 | 当前阶段先验证基本采集链路 |
 
-这些参数暂时由 `constructIpCameraContext()` 设置。采集链路在开发板验证稳定后，可再恢复原项目通过配置文件加载参数的方式。
+当前采集默认值由 `config.c` 的 `ip_camera_config_defaults()` 填入 `config->preview`，
+`application.c` 创建上下文时再复制到VI运行状态。旧 `constructIpCameraContext()`
+已移除；当前仍未增加外部配置文件加载，不能将后续计划当作已实现功能。
 
 ## 4. 初始化顺序
 
-`main()` 先调用 `platform_init()` 完成 MPP 系统初始化，再调用 `video_capture_start()`。VI 初始化严格按以下顺序执行：
+当前由`main()`调用应用start，`application.c`先执行`platform_init()`，再准备显示，
+最后在`start_preview()`中调用`video_capture_start()`。VI内部初始化顺序仍为：
 
 1. 填充 `VI_ATTR_S`，设置缓存类型、内存映射方式、分辨率、格式和帧率。
 2. 调用 `AW_MPI_VI_CreateVipp()` 创建物理视频输入通道。
@@ -100,7 +110,7 @@ AW_MPI_VI_ReleaseFrame()
 5. 禁用 VIPP。
 6. 停止 ISP。
 7. 销毁 VIPP。
-8. 返回 `main()`，最后执行 `platform_deinit()` 退出 MPP 系统。
+8. 返回应用清理层；当前`application.c`继续清理显示等资源，最后执行`platform_deinit()`。
 
 这里必须先停止采集线程，再销毁 VI 通道，否则线程可能在 VI 已被销毁后继续调用 `GetFrame/ReleaseFrame`，形成资源竞争甚至崩溃。
 

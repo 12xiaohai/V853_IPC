@@ -1262,7 +1262,7 @@ int mp4_recorder_push_audio(Mp4RecorderContext *recorder,
 
     /* 在首个视频关键帧之前不写音频，避免MP4以无法解码的视频开头。 */
     if (recorder->waiting_for_key_frame) {
-        ++recorder->skipped_audio_frames;
+        ++recorder->skipped_audio_frames; 
         pthread_mutex_unlock(&recorder->send_lock);
         return 0;
     }

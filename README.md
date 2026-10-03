@@ -15,6 +15,9 @@ Media and detection modules still own their workers; no duplicate thread manager
 or hardware pipeline was added. See
 [the architecture refactor guide](word/架构重构_入口配置与应用生命周期技术说明.md)
 for ownership rules, regression results, and required board retesting.
+The stage guides in `word/` now identify current configuration/lifecycle locations
+and distinguish historical examples and logs from the refactored code. Use the
+guide's documentation index when looking for the source of a particular setting.
 
 Run the host lifecycle/config regression with an installed MinGW clang:
 

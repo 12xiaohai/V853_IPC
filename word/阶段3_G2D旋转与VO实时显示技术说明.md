@@ -1,5 +1,11 @@
 # 阶段 3：G2D 旋转与 VO 实时显示技术说明
 
+> 架构同步（2026-10-03）：当前main.c负责信号、运行模式与主循环，
+> 默认参数集中在config.c，服务启动/回调/清理由application.c负责。
+> 显示默认值在config->display；application先启动显示再启动VI，停止时先VI后显示。
+> 早期阶段范围、旧代码示例及实测日志属于当时快照，不表示重构后已完成板端复测。
+> 详见[架构重构说明](架构重构_入口配置与应用生命周期技术说明.md)。
+
 ## 1. 阶段目标
 
 本阶段在已经通过实机验证的 VI 采集链路后加入 G2D 和 VO，解决摄像头横向图像在竖屏 LCD 上显示的问题：
@@ -32,7 +38,8 @@ VO 回调归还 MMZ 输出帧
 | `sample/ipc_camera/app/video_display.c` | 管理 MMZ 帧池、VO 初始化、送帧、回调与销毁 |
 | `sample/ipc_camera/include/context.h` | 让 VI 采集上下文持有显示模块指针 |
 | `sample/ipc_camera/app/video_capture.c` | 取得 VI 帧后调用 G2D/VO 显示处理 |
-| `sample/ipc_camera/app/main.c` | 在启动 VI 前初始化显示模块，并按安全顺序退出 |
+| `sample/ipc_camera/app/config.c`、`application.c` | 默认显示参数在config.c；application.c在VI前启动显示，VI退出后销毁显示 |
+| `sample/ipc_camera/app/main.c` | 信号、运行模式、主循环与统一生命周期入口 |
 | `README.md` | 更新当前复刻进度 |
 
 ## 3. 为什么需要 G2D

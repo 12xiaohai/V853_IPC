@@ -1,5 +1,11 @@
 # 阶段 5：RTSP 视频推流技术说明
 
+> 架构同步（2026-10-03）：当前main.c负责信号、运行模式与主循环，
+> 默认参数集中在config.c，服务启动/回调/清理由application.c负责。
+> RTSP参数在config->rtsp；application连接H.264/AAC分发并管理服务生命周期。
+> 早期阶段范围、旧代码示例及实测日志属于当时快照，不表示重构后已完成板端复测。
+> 详见[架构重构说明](架构重构_入口配置与应用生命周期技术说明.md)。
+
 ## 1. 阶段目标
 
 本阶段在阶段 4 的 H.264 硬件编码基础上，将 VENC 输出的码流同时交给 RTSP 服务器，使 PC 端可以通过网络实时播放摄像头画面。
@@ -29,7 +35,8 @@ VIPP 0 / VI Chn 0
 | `sample/ipc_camera/app/rtsp_stream.c` | 实现码流深拷贝、有界队列和发送线程 |
 | `sample/ipc_camera/include/video_encoder.h` | 增加编码帧回调接口 |
 | `sample/ipc_camera/app/video_encoder.c` | 保存 SPS/PPS，并将每个编码帧交给 RTSP 模块 |
-| `sample/ipc_camera/app/main.c` | 创建、启动和逆序销毁 RTSP 模块 |
+| `sample/ipc_camera/app/config.c`、`application.c` | 默认网络参数在config.c；application.c在编码前启动RTSP，在生产者退出后销毁 |
+| `sample/ipc_camera/app/main.c` | 信号、运行模式、主循环与统一生命周期入口 |
 | `Makefile` | 增加 SDK TinyServer 接口头文件路径 |
 | `README.md` | 更新阶段 5 开发进度 |
 
@@ -47,7 +54,9 @@ VIPP 0 / VI Chn 0
 | 码流队列容量 | 16 帧 |
 | 播放地址 | `rtsp://<wlan0-ip>:8554/ch0` |
 
-当前保持与原项目一致，使用 `wlan0`。如果开发板实际通过有线网口连接，应将 `main.c` 中的 `RTSP_NET_TYPE_WLAN0` 改为 `RTSP_NET_TYPE_ETH0`。
+当前保持与原项目一致，使用`wlan0`。如开发板实际使用有线网口，修改`config.c`
+中`ip_camera_config_defaults()`的`config->rtsp.net_type`为`RTSP_NET_TYPE_ETH0`，
+重新编译部署；不再到main.c查找网卡赋值。
 
 ## 4. VENC 码流回调
 
