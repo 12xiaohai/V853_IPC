@@ -1,19 +1,22 @@
 # 阶段 3：G2D 旋转与 VO 实时显示技术说明
 
-> 架构同步（2026-10-03）：当前main.c负责信号、运行模式与主循环，
-> 默认参数集中在config.c，服务启动/回调/清理由application.c负责。
-> 显示默认值在config->display；application先启动显示再启动VI，停止时先VI后显示。
-> 早期阶段范围、旧代码示例及实测日志属于当时快照，不表示重构后已完成板端复测。
-> 详见[架构重构说明](架构重构_入口配置与应用生命周期技术说明.md)。
+> 阅读方式：正文第1～10节讲当前显示模块；第11节保留2026-09-30的历史日志与验收结论。
+> 本篇只展开LCD预览，但当前main已经包含编码、RTSP、录像等服务；学习不需要切换历史提交。
+
+- 文档版本：V2.0，更新日期：2026-10-06。
+- 源码基准：`main`的`eeeb66b`。
+- 当前回归边界：2026-10-03日志中VO提交/回收均为25416、应用侧丢弃0，且正常退出；同一测试仍有70条VIPP4 FIFO溢出，不能称为上游无丢帧或完整预览链路长期稳定。
+
+先读[阶段2采集说明](阶段2_VI视频采集技术说明.md)，应用层职责见[架构重构说明](架构重构_入口配置与应用生命周期技术说明.md)。
 
 ## 1. 阶段目标
 
-本阶段在已经通过实机验证的 VI 采集链路后加入 G2D 和 VO，解决摄像头横向图像在竖屏 LCD 上显示的问题：
+本篇学习当前LCD预览如何处理方向、目标帧内存和异步显示。默认链路如下：
 
 ```text
 GC2053 MIPI CSI
       ↓
-VI：1920×1080 NV21
+VIPP4 / VI虚拟通道0：1920×1080 NV21
       ↓ GetFrame
 G2D：顺时针旋转 270°
       ↓
@@ -22,13 +25,13 @@ MMZ 输出帧：1080×1920 NV21
 VO Layer 0 / Channel 0
       ↓ 缩放
 480×800 LCD
-      ↓
-VO 回调归还 MMZ 输出帧
 ```
 
-本阶段仍不加入视频编码、RTSP 和录像，目的是独立验证实时预览通路。
+VO不再使用目标帧后，通过释放回调把MMZ池节点标为可复用。这不是把VI源帧归还给摄像头：源帧在`video_display_submit()`返回后由采集线程归还，两种缓冲有不同的生命周期。
 
-## 2. 新增与修改的文件
+VIPP0负责编码，VIPP8负责NPU；预览的G2D旋转只作用于VIPP4输出的目标帧，不会自动旋转RTSP或MP4画面。阶段9.3的LCD检测框先画在VIPP4上，再随整帧旋转；本篇不展开画框模块。
+
+## 2. 当前文件职责与接口
 
 | 文件 | 作用 |
 | --- | --- |
@@ -40,7 +43,24 @@ VO 回调归还 MMZ 输出帧
 | `sample/ipc_camera/app/video_capture.c` | 取得 VI 帧后调用 G2D/VO 显示处理 |
 | `sample/ipc_camera/app/config.c`、`application.c` | 默认显示参数在config.c；application.c在VI前启动显示，VI退出后销毁显示 |
 | `sample/ipc_camera/app/main.c` | 信号、运行模式、主循环与统一生命周期入口 |
-| `README.md` | 更新当前复刻进度 |
+| `README.md` | 完整项目进度，不是阶段3独立运行入口 |
+
+阅读顺序：[video_display.h](../sample/ipc_camera/include/video_display.h) → [application.c](../sample/ipc_camera/app/application.c)的`start_preview()` → [video_capture.c](../sample/ipc_camera/app/video_capture.c)的显示调用 → [video_display.c](../sample/ipc_camera/app/video_display.c)的submit/callback → [g2d.c](../sample/ipc_camera/app/g2d.c)的转换。
+
+当前显示模块的接口为：
+
+```c
+VideoDisplayContext *video_display_create(const VideoDisplayConfig *config);
+int video_display_start(VideoDisplayContext *display);
+int video_display_submit(VideoDisplayContext *display,
+                         const VIDEO_FRAME_INFO_S *source);
+int video_display_stop(VideoDisplayContext *display);
+void video_display_destroy(VideoDisplayContext *display);
+```
+
+create只分配应用对象、复制配置、初始化帧池锁并设置设备号，不访问硬件；start打开G2D、分配MMZ并启动VO。应用上下文拥有显示对象，VI只借用指针；`VideoDisplayContext`内部布局不暴露给采集模块。
+
+没有单独的“显示送帧线程”：VI采集线程同步执行G2D和SendFrame；VO内部异步使用目标帧，并从SDK回调路径归还。采集线程取池节点与VO回调释放节点通过`buffer_lock`互斥。
 
 ## 3. 为什么需要 G2D
 
@@ -57,6 +77,8 @@ G2D 是 V853 的二维图形硬件加速单元。本阶段通过 `G2D_CMD_BITBLT
 ```
 
 VO 再将 1080×1920 图像缩放到 LCD 的 480×800 显示区域。
+
+旋转和缩放是两步：当前G2D只旋转、交换宽高，LCD窗口缩放交给VO。1080:1920与480:800的比例并不完全一致，代码使用完整显示矩形，没有实现保持比例的letterbox或额外裁剪。270°是本板默认安装方向，不是所有摄像头/LCD的通用正确方向。
 
 ## 4. G2D 转换流程
 
@@ -75,7 +97,9 @@ VO 再将 1080×1920 图像缩放到 LCD 的 480×800 显示区域。
 - 转换通过一次 `ioctl(G2D_CMD_BITBLT_H)` 在硬件中完成；
 - 转换后将源帧 PTS 复制到目标帧，保证显示时间信息不丢失。
 
-G2D 转换是同步操作，因此 `g2d_convert_frame()` 返回后即可把原始 VI 帧归还给 VI。
+当前通过同步ioctl执行G2D：成功返回后不再需要源VI像素，采集线程实际在整个`video_display_submit()`返回后归还源帧。转换失败时没有有效显示结果，但采集线程仍须归还已取得的源帧。
+
+函数会检查输入输出尺寸和像素格式映射，再设置物理地址、全图裁剪区域及旋转标志。它不自行申请目标图像，也不负责VI归还或VO回调。
 
 ## 5. MMZ 输出帧池
 
@@ -88,17 +112,29 @@ VO 显示是异步操作：`AW_MPI_VO_SendFrame()` 成功返回，只表示 VO �
 - 唯一的帧 ID：0～4；
 - `in_use` 使用状态。
 
-单帧约占 3.11 MB，5 帧合计约占 15.55 MB 连续媒体内存。
+单帧像素数据为`1080 × 1920 × 3 / 2 = 3,110,400`字节，约3.11 MB（2.97 MiB）；5帧合计15,552,000字节，约15.55 MB（14.83 MiB），不含驱动分配开销。代码分别为每帧Y、VU平面调用`AW_MPI_SYS_MmzAlloc_Cached()`，不能把它理解为单次malloc一个15 MB普通堆块。
 
 采集线程每次显示一帧时：
 
 1. 从帧池中查找空闲缓冲并标记为使用中。
 2. 使用 G2D 将 VI 帧旋转到该缓冲。
 3. 调用 `AW_MPI_VO_SendFrame()` 提交给 VO。
-4. 立即调用 `AW_MPI_VI_ReleaseFrame()` 归还原始 VI 帧。
+4. 返回VI采集线程，由采集线程调用`AW_MPI_VI_ReleaseFrame()`归还源帧；不是显示模块调用这个接口。
 5. 输出缓冲仍由 VO 持有，暂时不能复用。
 
 如果 5 个输出缓冲全部被 VO 占用，当前视频帧会被丢弃，而不是阻塞 VI 采集线程。程序会记录 `dropped` 计数，便于判断显示通路是否处理不及时。
+
+“不阻塞”特指没有空闲帧池节点时不等待；并不保证互斥锁、G2D ioctl和SDK调用完全不会等待。这里只丢本次LCD预览，不会要求VIPP0编码通路丢掉同一时刻的帧。
+
+`video_display_submit()`的当前返回语义：
+
+| 返回值 | 处理结果 | 池节点与VI源帧 |
+| --- | --- | --- |
+| 0 | SendFrame成功，`submitted`增加 | 目标节点等待VO回调；VI源帧随后由采集线程归还 |
+| 1 | 没有空闲节点，`dropped`增加 | 不做转换；VI源帧仍由采集线程归还 |
+| -1 | 配置、G2D或SendFrame失败 | 已取得的目标节点立即标为空闲；不增加VO回调回收计数；VI源帧仍归还 |
+
+因此`dropped`只统计帧池耗尽，不包含全部显示错误、G2D失败或内核VIN FIFO溢出。
 
 ## 6. VO 回调与帧所有权
 
@@ -124,6 +160,8 @@ VO 持有并显示
 
 该回调机制是防止花屏、撕裂和帧内存被提前覆盖的关键。
 
+回调中的“归还”只是`in_use = 0`，不调用`MmzFree()`；目标平面在stop时统一释放。`released`仅统计VO释放回调成功归还的池节点；G2D/SendFrame失败后的本地回收不计入该数。SendFrame成功也不证明物理屏幕已亮起，应结合肉眼画面和硬件连接验证。
+
 ## 7. VO 初始化参数
 
 本阶段沿用原项目的显示参数：
@@ -143,6 +181,20 @@ VO 持有并显示
 
 VO 初始化步骤为：使能设备、处理 UI Layer、设置公共属性、使能视频层、设置显示区域、创建通道、注册回调、设置缓存数并启动通道。
 
+精确对照`video_display_start()`时，顺序为：
+
+```text
+g2d_open → 分配MMZ池 → AW_MPI_VO_Enable
+→ AddOutsideVideoLayer(HLAY(2,0)) → CloseVideoLayer(UI层)
+→ GetPubAttr → SetPubAttr(LCD / NTSC枚举)
+→ EnableVideoLayer(0) → Get/SetVideoLayerAttr(显示矩形)
+→ CreateChn(0,0) → RegisterCallback → SetChnDispBufNum(2) → StartChn
+```
+
+默认尺寸、旋转角度、显示矩形来自`config->display`；5个MMZ池节点、VO设备/层/通道号及2个VO显示缓冲目前是video_display.c中的固定设置。`VO_OUTPUT_NTSC`是源码采用的SDK枚举，不表示板载LCD变成NTSC电视分辨率；实际panel时序由底层配置决定。
+
+曾尝试在VO使能前设置公共属性并遇到失败，当前顺序已经是Enable之后Get/SetPubAttr。不要按历史试验代码反过来修改；相关黑屏、接口顺序和硬件重新接线经过见[阶段4说明](阶段4_H264硬件编码技术说明.md)及[历史问题复盘](项目构建部署与历史问题复盘.md)。
+
 ## 8. 启动与退出顺序
 
 ### 8.1 启动顺序
@@ -156,7 +208,7 @@ MPP 初始化
   → 启动 VI 采集线程
 ```
 
-必须先启动显示模块，再启动采集线程，否则采集线程可能在 VO 尚未准备完成时提交视频帧。
+当前`application.c`的`start_preview()`先完成显示create/start，再设置`ctx->video_capture.display`并启动VI。这样采集线程首次取帧时显示对象已经准备好。上图只是预览子链路，不是完整应用的全部启动步骤。
 
 ### 8.2 退出顺序
 
@@ -176,13 +228,17 @@ MPP 初始化
 
 实际代码首先停止 VI 采集线程和输入链路，是为了保证 VO 关闭期间不会再收到新帧。G2D 已经把图像复制到独立的 MMZ 输出帧，因此此时关闭 VI/ISP 不会破坏 VO 正在显示的帧。VO 通道停止和销毁完成后才释放 MMZ，避免 VO 仍在读取已经释放的物理内存。
 
+完整应用会先清理规则、报警、检测和编码等其他服务，再进入上述VI/显示清理段。应用层在VI停止后把借用的display指针清空；显示stop之后destroy释放对象和锁，最后退出MPP。
+
+启动失败时start调用stop按状态标志回滚。当前stop会记录驱动清理错误并继续后续清理，包括MMZ释放；它没有实现驱动清理失败后的可靠硬件隔离。因此“VO已不再持有目标内存”的判断以正常Stop/Destroy成功为前提，出现这些接口失败时不能只看最终计数就认定安全，也不能承诺固定退出时限。
+
 ## 9. 编译与开发板验证
 
-在 Linux 虚拟机中同步并编译：
+在Linux虚拟机的实际仓库目录编译；不要把示例目录名当作固定路径：
 
 ```sh
-cd ~/sample_demo
-git pull origin main
+git status
+# 按需同步，先处理自己的修改：git pull --ff-only origin main
 ./build.sh
 ```
 
@@ -192,6 +248,8 @@ git pull origin main
 chmod +x sample_strip
 ./sample_strip
 ```
+
+该命令运行完整监控，不是阶段3专用的预览程序。下面只摘录G2D/VO/VI相关输出；网络、模型、音频等服务的启动失败仍可能使整个应用退出。当前main不提供`--preview-only`模式。
 
 预期启动日志包含：
 
@@ -209,8 +267,8 @@ LCD 应显示方向正确、连续流畅的摄像头画面。按 `Ctrl+C` 后预
 ```text
 [VI] Capture thread stopped, total frames=...
 [VI] Video capture stopped
-[VO] Display stopped: submitted=..., released=..., dropped=...
 [G2D] Closed
+[VO] Display stopped: submitted=..., released=..., dropped=...
 [Main] Application exited with code: 0
 ```
 
@@ -228,7 +286,17 @@ LCD 应显示方向正确、连续流畅的摄像头画面。按 `Ctrl+C` 后预
 - Ctrl+C 后 VI、VO、MMZ、G2D 和 MPP 均正常释放；
 - 应用退出码为 0，再次运行仍能正常显示。
 
-## 11. 开发板验证结果
+学习检查：能够画出VI源帧与MMZ目标帧各自的所有权变化；能够说明为什么VI释放不等VO回调、为什么MMZ复用必须等回调、为什么停止VI在关闭显示之前。
+
+2026-10-03用户提供的当前完整运行日志中，VO最终为`submitted=25416, released=25416, dropped=0`，正常退出码0。它支持“已提交的目标帧在本次正常清理中全部通过回调回收”，不证明每个传感器帧均到达应用，也不证明每帧都肉眼显示。
+
+同一日志中仍有70条`video4 fifo overflow`，另外退出阶段出现一条`scaler12 channel ID nember is lost!!!`，需保留观察，不能仅凭它认定退出失败或确定根因。当前风险和复测见[阶段2说明](阶段2_VI视频采集技术说明.md)与[集成压力测试复盘](阶段9.7_集成压力测试与退出阻塞复盘.md)。
+
+如果再次黑屏，按源帧、G2D、VO属性/层、panel背光和接线逐段检查；MP4/VLC正常来自VIPP0，不能排除VIPP4或LCD硬件问题。历史排查曾转储NV21帧，但当前显示模块不会自动生成`preview_frame_1920x1080.nv21`或`g2d_frame_1080x1920`文件。
+
+## 11. 历史记录：阶段3开发板验证（2026-09-30）
+
+以下保存当时单独预览版本的日志和结论，不是当前带编码、推流、录像、AI的整机压力测试结果。
 
 本阶段代码已经完成交叉编译，并于 2026 年 9 月 30 日在 V853 开发板上运行验证。
 
@@ -312,3 +380,7 @@ disp_mgr_set_layer_config: NULL hdl!
 ### 11.5 阶段结论
 
 G2D 旋转、VO 送帧、回调回收和安全退出均已通过实机验证。LCD 肉眼检查也已确认画面显示、方向和比例没有明显问题，因此阶段 3 正式验收完成，可以进入阶段 4：H.264 硬件编码。
+
+## 12. 本次文档修订记录
+
+2026-10-06：正文改为当前预览子链路学习说明，补充接口、执行线程、错误分支、MMZ字节数、缩放比例及所有权；纠正预期退出日志顺序，区分完整应用运行和历史预览验收，并记录10月3日FIFO仍复现的边界。只更新文档，本次没有编译或新增板端测试。
